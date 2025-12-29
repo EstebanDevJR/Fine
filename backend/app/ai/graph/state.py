@@ -1,0 +1,1 @@
+# AuditState (shared memory)

@@ -1,0 +1,5 @@
+gender,feat1,feat2,label
+M,1,2,0
+M,2,1,0
+F,2,3,1
+F,3,3,1
