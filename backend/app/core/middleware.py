@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import Request, Response
 
@@ -25,4 +25,3 @@ async def request_id_middleware(request: Request, call_next: Callable):
     incr(f"requests_total_{route}_{status}")
     observe_time(f"requests_ms_{route}", elapsed_ms)
     return response
-

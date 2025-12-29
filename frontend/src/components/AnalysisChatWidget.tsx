@@ -1,17 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useRouterState } from '@tanstack/react-router'
 import { MessageCircle, X, Sparkles, Send, Bot, User, Loader2 } from 'lucide-react'
 import { api } from '../api/client'
-import { useAuth } from '../api/AuthProvider'
-
-type Analysis = {
-  id: number
-  dataset_id: number
-  model_id: number
-  status: string
-  result?: Record<string, unknown> | null
-}
+import { useAuth } from '../api/useAuth'
+import type { Analysis } from '../api/schemas'
 
 const QUICK_PROMPTS = [
   'Give me an executive summary of this analysis',
@@ -30,28 +23,24 @@ export function AnalysisChatWidget() {
 
   const listQuery = useQuery<Analysis[]>({
     queryKey: ['analyses'],
-    queryFn: api.listAnalyses as any,
+    queryFn: api.listAnalyses,
     enabled: Boolean(user) && open,
   })
 
-  useEffect(() => {
-    if (listQuery.data?.length && !analysisId) {
-      setAnalysisId(listQuery.data[0].id)
-    }
-  }, [listQuery.data, analysisId])
+  const activeAnalysisId = analysisId ?? listQuery.data?.[0]?.id ?? null
 
   const analysisLabel = useMemo(() => {
     if (!listQuery.data) return ''
-    const found = listQuery.data.find((a) => a.id === analysisId)
+    const found = listQuery.data.find((a) => a.id === activeAnalysisId)
     if (!found) return ''
     return `Analysis #${found.id} · DS ${found.dataset_id} · Model ${found.model_id}`
-  }, [analysisId, listQuery.data])
+  }, [activeAnalysisId, listQuery.data])
 
   const chatMutation = useMutation({
     mutationFn: async (question: string) => {
-      if (!analysisId) throw new Error('Selecciona un análisis')
+      if (!activeAnalysisId) throw new Error('Selecciona un análisis')
       return api.analysisQA({
-        analysis_id: analysisId,
+        analysis_id: activeAnalysisId,
         question,
         page: router.location.pathname,
         page_context: 'Floating chat widget',
@@ -90,7 +79,7 @@ export function AnalysisChatWidget() {
               <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text)]">AI Assistant</p>
             </div>
             <select
-              value={analysisId ?? ''}
+              value={activeAnalysisId ?? ''}
               onChange={(e) => setAnalysisId(e.target.value ? Number(e.target.value) : null)}
               className="text-[11px] rounded-xl border border-[var(--card-border)] bg-[var(--bg)]/60 px-3 py-1 text-[var(--text)] outline-none"
             >
@@ -165,7 +154,7 @@ export function AnalysisChatWidget() {
             />
             <button
               onClick={() => handleSend()}
-              disabled={!analysisId || chatMutation.isPending}
+              disabled={!activeAnalysisId || chatMutation.isPending}
               className="px-4 py-2 rounded-xl bg-[var(--text)] text-[var(--bg)] text-[10px] font-black uppercase tracking-[0.2em] hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
             >
               <Send className="w-4 h-4" />

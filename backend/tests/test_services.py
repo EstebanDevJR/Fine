@@ -1,14 +1,13 @@
 from pathlib import Path
 
-import pandas as pd
 from app.core.config import Settings
 from app.db.models import Dataset, ModelArtifact
 from app.services.diagnose_service import diagnose
+from app.services.fairness_service import evaluate_fairness
 from app.services.metrics_service import evaluate_model
+from app.services.report_service import generate_report
 from app.services.stress_service import robustness_analysis, sensitivity_analysis
 from app.services.xai_service import explain_model
-from app.services.fairness_service import evaluate_fairness
-from app.services.report_service import generate_report
 
 
 def make_dataset_model(dataset_path: Path, model_path: Path, storage: Path):
@@ -80,7 +79,9 @@ def test_diagnose(sample_dataset, sample_model, tmp_storage, monkeypatch):
         content = '{"summary":"ok","risks":["r1"],"recommendations":["c1"]}'
 
     # Patch ChatOpenAI inside diagnose_service
-    monkeypatch.setattr("app.services.diagnose_service.ChatOpenAI", lambda **_: (lambda *_args, **_kwargs: R()))
+    monkeypatch.setattr(
+        "app.services.diagnose_service.ChatOpenAI", lambda **_: (lambda *_args, **_kwargs: R())
+    )
 
     result = diagnose(
         dataset=ds,
@@ -100,7 +101,9 @@ def test_report(sample_dataset, sample_model, tmp_storage, monkeypatch):
     class R:
         content = '{"summary":"ok","risks":["r1"],"recommendations":["c1"]}'
 
-    monkeypatch.setattr("app.services.diagnose_service.ChatOpenAI", lambda **_: (lambda *_args, **_kwargs: R()))
+    monkeypatch.setattr(
+        "app.services.diagnose_service.ChatOpenAI", lambda **_: (lambda *_args, **_kwargs: R())
+    )
 
     report = generate_report(
         dataset=ds,
@@ -111,4 +114,3 @@ def test_report(sample_dataset, sample_model, tmp_storage, monkeypatch):
         unprivileged_values=["F"],
     )
     assert report.txt_path.exists()
-

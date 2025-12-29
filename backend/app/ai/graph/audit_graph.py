@@ -4,17 +4,17 @@ from typing import Any, TypedDict
 
 from langgraph.graph import END, StateGraph
 
+from app.ai.graph.nodes.fairness_node import run_fairness
+from app.ai.graph.nodes.metrics_node import run_metrics
+from app.ai.graph.nodes.overfit import run_overfit
+from app.ai.graph.nodes.reasoning_node import run_reasoning
+from app.ai.graph.nodes.stress_node import run_stress
+from app.ai.graph.nodes.xai_node import run_xai
 from app.core.config import Settings, get_settings
+from app.core.tracing import TraceWrapper, build_trace
 from app.db.session import AsyncSessionLocal
 from app.domain.audit.repository import get_dataset, get_model
 from app.services.report_service import generate_report
-from app.ai.graph.nodes.metrics_node import run_metrics
-from app.ai.graph.nodes.xai_node import run_xai
-from app.ai.graph.nodes.stress_node import run_stress
-from app.ai.graph.nodes.fairness_node import run_fairness
-from app.ai.graph.nodes.overfit import run_overfit
-from app.ai.graph.nodes.reasoning_node import run_reasoning
-from app.core.tracing import build_trace, TraceWrapper
 
 
 class AuditGraphState(TypedDict, total=False):
@@ -69,7 +69,10 @@ def build_audit_graph(
 
     def _wrap(name: str, fn):
         def _inner(state: AuditGraphState) -> AuditGraphState:
-            span = trace.span(name, input={"dataset_id": state.get("dataset_id"), "model_id": state.get("model_id")})
+            span = trace.span(
+                name,
+                input={"dataset_id": state.get("dataset_id"), "model_id": state.get("model_id")},
+            )
             try:
                 res = fn(state)
                 span.end(output=res.get("results"))
@@ -102,7 +105,9 @@ def build_audit_graph(
     return graph.compile()
 
 
-async def run_audit_graph(payload: AuditGraphState, settings: Settings | None = None) -> AuditGraphState:
+async def run_audit_graph(
+    payload: AuditGraphState, settings: Settings | None = None
+) -> AuditGraphState:
     settings = settings or get_settings()
     trace = build_trace(
         settings,

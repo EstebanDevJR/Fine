@@ -14,7 +14,7 @@ def run_overfit(state: AuditGraphState) -> AuditGraphState:
 
     flags = []
     acc = metrics.get("accuracy") or metrics.get("acc")
-    if acc is not None and isinstance(acc, (int, float)) and acc >= 0.98:
+    if acc is not None and isinstance(acc, int | float) and acc >= 0.98:
         flags.append("Very high accuracy; check for potential overfitting or leakage.")
 
     if flags:

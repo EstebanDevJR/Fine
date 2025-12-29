@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { Activity, Shield, Cpu, Zap, RefreshCw, CheckCircle2, AlertCircle, Loader2, Clock3, PlayCircle, Database, Server, Gauge } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import type { Health, Metrics, Ready, Analysis } from '../api/schemas'
+import type { UseQueryResult } from '@tanstack/react-query'
 
 export function StatusPage() {
   const health = useQuery({ queryKey: ['health'], queryFn: api.status })
@@ -129,8 +132,20 @@ export function StatusPage() {
   )
 }
 
-function StatCard({ icon: Icon, label, value, color }: any) {
-  const colors: any = {
+type StatColor = 'emerald' | 'blue' | 'purple' | 'rose' | 'amber'
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  color,
+}: {
+  icon: LucideIcon
+  label: string
+  value: string
+  color: StatColor
+}) {
+  const colors: Record<StatColor, string> = {
     emerald: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
     blue: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
     purple: 'text-purple-500 bg-purple-500/10 border-purple-500/20',
@@ -153,7 +168,21 @@ function StatCard({ icon: Icon, label, value, color }: any) {
   )
 }
 
-function StatusPanel({ title, subtitle, data, isLoading, isError, error }: any) {
+function StatusPanel({
+  title,
+  subtitle,
+  data,
+  isLoading,
+  isError,
+  error,
+}: {
+  title: 'Health Check' | 'Readiness' | 'Telemetry' | string
+  subtitle: string
+  data: unknown
+  isLoading: boolean
+  isError: boolean
+  error: unknown
+}) {
   return (
     <div className="glass-card flex flex-col rounded-[2.5rem] overflow-hidden h-[450px]">
       <div className="px-8 py-6 border-b border-[var(--card-border)] bg-[var(--bg)]/30">
@@ -173,14 +202,14 @@ function StatusPanel({ title, subtitle, data, isLoading, isError, error }: any) 
             <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10 bg-[var(--bg)]/30 rounded-2xl">
               <AlertCircle className="w-10 h-10 text-rose-500 mb-4 opacity-40" />
               <p className="text-xs font-black text-rose-500 uppercase tracking-widest">Signal Lost</p>
-              <p className="text-[10px] text-[var(--text-muted)] mt-2 font-medium">{(error as Error).message}</p>
+              <p className="text-[10px] text-[var(--text-muted)] mt-2 font-medium">{error instanceof Error ? error.message : 'Request failed'}</p>
             </div>
           ) : title === 'Health Check' ? (
-            <HealthCheckView data={data} />
+            <HealthCheckView data={data as Health} />
           ) : title === 'Readiness' ? (
-            <ReadinessView data={data} />
+            <ReadinessView data={data as Ready} />
           ) : title === 'Telemetry' ? (
-            <TelemetryView data={data} />
+            <TelemetryView data={data as Metrics} />
           ) : (
             <div className="h-full overflow-y-auto custom-scrollbar min-h-0">
               <pre className="text-[10px] font-mono leading-relaxed text-[var(--text)] opacity-80">
@@ -194,7 +223,7 @@ function StatusPanel({ title, subtitle, data, isLoading, isError, error }: any) 
   )
 }
 
-function HealthCheckView({ data }: { data: any }) {
+function HealthCheckView({ data }: { data: Health | undefined }) {
   if (!data) return null
   
   const isOk = data.status === 'ok'
@@ -232,7 +261,7 @@ function HealthCheckView({ data }: { data: any }) {
   )
 }
 
-function ReadinessView({ data }: { data: any }) {
+function ReadinessView({ data }: { data: Ready | undefined }) {
   if (!data) return null
   
   const isReady = data.status === 'ready'
@@ -293,7 +322,7 @@ function ReadinessView({ data }: { data: any }) {
   )
 }
 
-function TelemetryView({ data }: { data: any }) {
+function TelemetryView({ data }: { data: Metrics | undefined }) {
   if (!data) return null
   
   const counters = data.counters || {}
@@ -312,7 +341,7 @@ function TelemetryView({ data }: { data: any }) {
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Counters</p>
             </div>
             <div className="space-y-2">
-              {counterEntries.map(([key, value]: [string, any]) => (
+              {counterEntries.map(([key, value]) => (
                 <div key={key} className="p-3 rounded-lg bg-[var(--bg)]/40 border border-[var(--card-border)]">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-[var(--text)] truncate">{key}</span>
@@ -331,16 +360,16 @@ function TelemetryView({ data }: { data: any }) {
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Timings (ms)</p>
             </div>
             <div className="space-y-2">
-              {timingEntries.map(([key, value]: [string, any]) => (
+              {timingEntries.map(([key, value]) => (
                 <div key={key} className="p-3 rounded-lg bg-[var(--bg)]/40 border border-[var(--card-border)]">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-medium text-[var(--text)] truncate">{key}</span>
-                    <span className="text-sm font-bold text-amber-500 ml-2">{value.toFixed(2)}ms</span>
+                    <span className="text-sm font-bold text-amber-500 ml-2">{Number(value).toFixed(2)}ms</span>
                   </div>
                   <div className="w-full bg-[var(--bg)]/60 rounded-full h-1.5 overflow-hidden">
                     <div 
                       className="h-full bg-gradient-to-r from-amber-500/40 to-amber-500 rounded-full transition-all"
-                      style={{ width: `${Math.min((value / 1000) * 100, 100)}%` }}
+                      style={{ width: `${Math.min((Number(value) / 1000) * 100, 100)}%` }}
                     />
                   </div>
                 </div>
@@ -359,7 +388,7 @@ function TelemetryView({ data }: { data: any }) {
   )
 }
 
-function InfoRow({ label, value, icon: Icon }: { label: string; value: string; icon: any }) {
+function InfoRow({ label, value, icon: Icon }: { label: string; value: string; icon: LucideIcon }) {
   return (
     <div className="p-3 rounded-lg bg-[var(--bg)]/40 border border-[var(--card-border)] flex items-center gap-3">
       <Icon className="w-4 h-4 text-[var(--text-muted)]" />
@@ -371,8 +400,8 @@ function InfoRow({ label, value, icon: Icon }: { label: string; value: string; i
   )
 }
 
-function LiveTasksCard({ query }: any) {
-  const data = (query.data as any[]) || []
+function LiveTasksCard({ query }: { query: UseQueryResult<Analysis[], Error> }) {
+  const data = query.data || []
   const running = data.filter((a) => ['PROGRESS', 'STARTED', 'PENDING'].includes((a.status || '').toUpperCase()))
   const latest = running.slice(-5).reverse()
 

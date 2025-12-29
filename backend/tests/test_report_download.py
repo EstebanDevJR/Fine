@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import importlib
 import uuid
 from pathlib import Path
-import importlib
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -77,5 +77,3 @@ async def test_report_download_owner_bound(tmp_path: Path, monkeypatch: pytest.M
         )
         assert r2.status_code == 200
         assert "hello" in r2.text
-
-

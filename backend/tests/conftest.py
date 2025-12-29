@@ -1,11 +1,11 @@
 import pathlib
 import tempfile
-from typing import Generator
+from collections.abc import Generator
 
+import joblib
 import pandas as pd
 import pytest
 from sklearn.linear_model import LogisticRegression
-import joblib
 
 
 @pytest.fixture(scope="session")
@@ -38,4 +38,3 @@ def sample_model(tmp_storage: pathlib.Path, sample_dataset: pathlib.Path) -> pat
     path = tmp_storage / "model.pkl"
     joblib.dump(model, path)
     return path
-

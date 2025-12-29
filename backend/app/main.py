@@ -5,17 +5,17 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware import Middleware
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.v1 import router as api_router
 from app.core.config import get_settings
-from app.core.middleware import request_id_middleware
 from app.core.logging import configure_logging
+from app.core.middleware import request_id_middleware
+from app.core.ratelimit import init_limiter
 from app.core.security_headers import security_headers_middleware
 from app.db.session import init_db
-from app.core.ratelimit import init_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -74,4 +74,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-

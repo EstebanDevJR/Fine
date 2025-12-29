@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { api } from '../api/client'
-import { useAuth } from '../api/AuthProvider'
+import { useAuth } from '../api/useAuth'
 import { 
   Database, 
   Cpu, 
@@ -13,20 +12,26 @@ import {
   Plus, 
   Activity,
   Layers,
-  MoreVertical,
   ChevronRight,
   ShieldCheck,
   Loader2,
   Trash2,
   AlertCircle,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
-interface Asset {
-  id: string
+type DatasetAsset = {
+  id: number
   name: string
   created_at?: string
   file_format?: string
   target_column?: string
+}
+
+type ModelAsset = {
+  id: number
+  name: string
+  created_at?: string
   framework?: string
   task_type?: string
 }
@@ -329,8 +334,20 @@ export function UploadPage() {
   )
 }
 
-function StatCard({ label, value, icon: Icon, color }: { label: string; value: string | number; icon: any; color: string }) {
-  const colors: Record<string, string> = {
+type StatColor = 'emerald' | 'blue' | 'amber' | 'cyan'
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+}: {
+  label: string
+  value: string | number
+  icon: LucideIcon
+  color: StatColor
+}) {
+  const colors: Record<StatColor, string> = {
     emerald: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
     blue: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
     amber: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
@@ -352,7 +369,39 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: s
   )
 }
 
-function UploadForm({ title, icon, description, onFile, selectedFile, accept, onSubmit, isLoading, error, success, fields, progress, validationError, helper }: any) {
+type UploadFormProps = {
+  title: string
+  icon: React.ReactNode
+  description: string
+  onFile: (file: File | null) => void
+  selectedFile: File | null
+  accept: string
+  onSubmit: () => void
+  isLoading: boolean
+  error: string | null
+  success: string | null
+  fields?: React.ReactNode
+  progress?: number
+  validationError?: string | null
+  helper?: string
+}
+
+function UploadForm({
+  title,
+  icon,
+  description,
+  onFile,
+  selectedFile,
+  accept,
+  onSubmit,
+  isLoading,
+  error,
+  success,
+  fields,
+  progress,
+  validationError,
+  helper,
+}: UploadFormProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   
   return (
@@ -454,7 +503,19 @@ function UploadForm({ title, icon, description, onFile, selectedFile, accept, on
   )
 }
 
-function InventorySection({ datasets, models, loading, onDeleteDataset, onDeleteModel }: any) {
+function InventorySection({
+  datasets,
+  models,
+  loading,
+  onDeleteDataset,
+  onDeleteModel,
+}: {
+  datasets: DatasetAsset[]
+  models: ModelAsset[]
+  loading: boolean
+  onDeleteDataset: (id: number) => void
+  onDeleteModel: (id: number) => void
+}) {
   const [activeTab, setActiveTab] = useState('datasets')
 
   return (
@@ -496,7 +557,7 @@ function InventorySection({ datasets, models, loading, onDeleteDataset, onDelete
             No assets detected
           </div>
         ) : (
-          (activeTab === 'datasets' ? datasets : models).map((item: any) => (
+          (activeTab === 'datasets' ? datasets : models).map((item) => (
             <div key={item.id} className="p-6 flex items-center justify-between hover:bg-[var(--text)]/5 transition-colors group">
               <div className="flex items-center gap-5">
                 <div className="p-3 bg-[var(--bg)]/50 rounded-2xl border border-[var(--card-border)] group-hover:border-amber-500/30 transition-all">

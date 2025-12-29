@@ -7,8 +7,9 @@ Create Date: 2025-12-29
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "0001_init"
 down_revision = None
@@ -70,5 +71,3 @@ def downgrade() -> None:
     op.drop_table("analysis")
     op.drop_table("modelartifact")
     op.drop_table("dataset")
-
-

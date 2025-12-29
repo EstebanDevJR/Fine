@@ -1,5 +1,5 @@
 import { Outlet, useLocation } from '@tanstack/react-router';
-import { useTheme } from './ThemeContext';
+import { useTheme } from './useTheme';
 import { GlobalNav } from './GlobalNav';
 import { AnalysisChatWidget } from './AnalysisChatWidget';
 

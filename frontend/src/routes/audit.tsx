@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, Link } from '@tanstack/react-router'
 import { api } from '../api/client'
-import { useAuth } from '../api/AuthProvider'
+import { useAuth } from '../api/useAuth'
 import { 
   AlertTriangle, 
   Loader2, 
@@ -18,6 +18,7 @@ import {
   Copy,
   RefreshCw,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 type StepStatus = 'idle' | 'running' | 'done' | 'skipped' | 'error'
 
@@ -418,8 +419,20 @@ export function AuditPage() {
   )
 }
 
-function StatCard({ label, value, icon: Icon, color }: any) {
-  const colors: any = {
+type StatColor = 'emerald' | 'blue' | 'amber' | 'cyan'
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+}: {
+  label: string
+  value: number | string
+  icon: LucideIcon
+  color: StatColor
+}) {
+  const colors: Record<StatColor, string> = {
     emerald: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
     blue: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
     amber: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
@@ -441,8 +454,18 @@ function StatCard({ label, value, icon: Icon, color }: any) {
   )
 }
 
-function StepItem({ title, description, status, icon: Icon }: any) {
-  const configs: any = {
+function StepItem({
+  title,
+  description,
+  status,
+  icon: Icon,
+}: {
+  title: string
+  description: string
+  status: StepStatus
+  icon: LucideIcon
+}) {
+  const configs: Record<StepStatus, { border: string; text: string; icon: string }> = {
     idle: { border: 'border-[var(--card-border)]', text: 'text-[var(--text-muted)]', icon: 'bg-[var(--bg)]/50' },
     running: { border: 'border-blue-500/30', text: 'text-blue-500', icon: 'bg-blue-500/10 animate-pulse' },
     done: { border: 'border-emerald-500/30', text: 'text-emerald-500', icon: 'bg-emerald-500/10' },
@@ -470,7 +493,7 @@ function StepItem({ title, description, status, icon: Icon }: any) {
   )
 }
 
-function LiveActivityCard({ statusData }: any) {
+function LiveActivityCard({ statusData }: { statusData: AuditStatus | null }) {
   const state = statusData?.state || 'IDLE'
   return (
     <div className="glass-card p-6 rounded-[2rem] space-y-6">
@@ -496,7 +519,15 @@ function LiveActivityCard({ statusData }: any) {
   )
 }
 
-function ResultSummary({ result, state, analysisId }: any) {
+function ResultSummary({
+  result,
+  state,
+  analysisId,
+}: {
+  result: AuditStatus['result']
+  state?: string
+  analysisId?: number | null
+}) {
   const navigate = useNavigate()
 
   if (!result || state !== 'SUCCESS') return null

@@ -1,29 +1,30 @@
 from __future__ import annotations
 
+import contextlib
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_app_settings, get_db
 from app.core.auth import get_current_user
 from app.core.config import Settings
-from app.core.s3 import presign_put, build_s3_path, download_to_path, delete_s3_uri
-from app.domain.audit.schemas import DatasetResponse, ModelResponse
-from app.domain.audit.service import create_dataset, create_model
+from app.core.ratelimit import rate_limit
+from app.core.s3 import build_s3_path, delete_s3_uri, download_to_path, presign_put
 from app.domain.audit.repository import (
+    delete_analysis,
     delete_dataset,
     delete_model,
     get_dataset,
     get_model,
     list_analyses_by_dataset,
     list_analyses_by_model,
-    delete_analysis,
 )
-from app.utils.file_utils import save_upload_file, compute_checksum
+from app.domain.audit.schemas import DatasetResponse, ModelResponse
+from app.domain.audit.service import create_dataset, create_model
+from app.utils.file_utils import compute_checksum, save_upload_file
 from app.utils.validation import ALLOWED_DATASET_EXT, ALLOWED_MODEL_EXT, ensure_allowed_extension
-from app.core.ratelimit import rate_limit
 
 router = APIRouter(tags=["upload"])
 
@@ -94,7 +95,13 @@ async def presign_dataset_s3(
     bucket = _require_bucket(settings.s3_bucket_datasets, "datasets")
     key = build_s3_path("datasets", user_id, filename)
     presigned = presign_put(settings, bucket, key, content_type, max_size_bytes=10 * 1024 * 1024)
-    return {"upload_url": presigned["url"], "fields": presigned["fields"], "key": key, "bucket": bucket, "ext": ext}
+    return {
+        "upload_url": presigned["url"],
+        "fields": presigned["fields"],
+        "key": key,
+        "bucket": bucket,
+        "ext": ext,
+    }
 
 
 @router.post(
@@ -210,7 +217,13 @@ async def presign_model_s3(
     bucket = _require_bucket(settings.s3_bucket_models, "models")
     key = build_s3_path("models", user_id, filename)
     presigned = presign_put(settings, bucket, key, content_type, max_size_bytes=50 * 1024 * 1024)
-    return {"upload_url": presigned["url"], "fields": presigned["fields"], "key": key, "bucket": bucket, "ext": ext}
+    return {
+        "upload_url": presigned["url"],
+        "fields": presigned["fields"],
+        "key": key,
+        "bucket": bucket,
+        "ext": ext,
+    }
 
 
 @router.post(
@@ -289,37 +302,27 @@ async def delete_dataset_api(
     # Delete related analyses first to satisfy FK
     analyses = await list_analyses_by_dataset(db, dataset_id, user_id)
     from pathlib import Path
-    from app.core.s3 import delete_s3_uri
+
     for a in analyses:
-        try:
+        with contextlib.suppress(Exception):
             if a.report_path and not a.report_path.startswith("s3://"):
                 Path(a.report_path).unlink(missing_ok=True)  # type: ignore[arg-type]
             if a.pdf_path and a.pdf_path.startswith("s3://") is False and a.pdf_path:
                 Path(a.pdf_path).unlink(missing_ok=True)  # type: ignore[arg-type]
-        except Exception:
-            pass
         if a.report_path and a.report_path.startswith("s3://"):
-            try:
+            with contextlib.suppress(Exception):
                 delete_s3_uri(settings, a.report_path)
-            except Exception:
-                pass
         if a.pdf_path and a.pdf_path.startswith("s3://"):
-            try:
+            with contextlib.suppress(Exception):
                 delete_s3_uri(settings, a.pdf_path)
-            except Exception:
-                pass
         await delete_analysis(db, a.id, user_id)
     # Delete local file
-    try:
+    with contextlib.suppress(Exception):
         Path(record.path).unlink(missing_ok=True)  # type: ignore[arg-type]
-    except Exception:
-        pass
     # Delete S3 object if present
     if record.s3_uri:
-        try:
+        with contextlib.suppress(Exception):
             delete_s3_uri(settings, record.s3_uri)
-        except Exception:
-            pass
     await delete_dataset(db, dataset_id, user_id)
     return {}
 
@@ -340,34 +343,24 @@ async def delete_model_api(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Model not found")
     analyses = await list_analyses_by_model(db, model_id, user_id)
     from pathlib import Path
-    from app.core.s3 import delete_s3_uri
+
     for a in analyses:
-        try:
+        with contextlib.suppress(Exception):
             if a.report_path and not a.report_path.startswith("s3://"):
                 Path(a.report_path).unlink(missing_ok=True)  # type: ignore[arg-type]
             if a.pdf_path and a.pdf_path.startswith("s3://") is False and a.pdf_path:
                 Path(a.pdf_path).unlink(missing_ok=True)  # type: ignore[arg-type]
-        except Exception:
-            pass
         if a.report_path and a.report_path.startswith("s3://"):
-            try:
+            with contextlib.suppress(Exception):
                 delete_s3_uri(settings, a.report_path)
-            except Exception:
-                pass
         if a.pdf_path and a.pdf_path.startswith("s3://"):
-            try:
+            with contextlib.suppress(Exception):
                 delete_s3_uri(settings, a.pdf_path)
-            except Exception:
-                pass
         await delete_analysis(db, a.id, user_id)
-    try:
+    with contextlib.suppress(Exception):
         Path(record.path).unlink(missing_ok=True)  # type: ignore[arg-type]
-    except Exception:
-        pass
     if record.s3_uri:
-        try:
+        with contextlib.suppress(Exception):
             delete_s3_uri(settings, record.s3_uri)
-        except Exception:
-            pass
     await delete_model(db, model_id, user_id)
     return {}

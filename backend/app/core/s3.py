@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-from typing import Optional
+import mimetypes
+from datetime import datetime
 
 import boto3
-import mimetypes
 
 from app.core.config import Settings
 
@@ -25,7 +24,11 @@ def presign_put(
     content_type: str,
     max_size_bytes: int,
 ) -> dict:
-    if not settings.aws_access_key_id or not settings.aws_secret_access_key or not settings.aws_region:
+    if (
+        not settings.aws_access_key_id
+        or not settings.aws_secret_access_key
+        or not settings.aws_region
+    ):
         raise ValueError("AWS S3 not configured")
     client = _client(settings)
     expires_in = max(settings.s3_presign_exp_seconds, 60)
@@ -49,7 +52,11 @@ def build_s3_path(prefix: str, user_id: str, filename: str) -> str:
 
 
 def download_to_path(settings: Settings, bucket: str, key: str, destination: str) -> str:
-    if not settings.aws_access_key_id or not settings.aws_secret_access_key or not settings.aws_region:
+    if (
+        not settings.aws_access_key_id
+        or not settings.aws_secret_access_key
+        or not settings.aws_region
+    ):
         raise ValueError("AWS S3 not configured")
     client = _client(settings)
     from pathlib import Path
@@ -60,7 +67,11 @@ def download_to_path(settings: Settings, bucket: str, key: str, destination: str
 
 
 def upload_file(settings: Settings, bucket: str, key: str, local_path: str) -> str:
-    if not settings.aws_access_key_id or not settings.aws_secret_access_key or not settings.aws_region:
+    if (
+        not settings.aws_access_key_id
+        or not settings.aws_secret_access_key
+        or not settings.aws_region
+    ):
         raise ValueError("AWS S3 not configured")
     client = _client(settings)
     content_type, _ = mimetypes.guess_type(local_path)
@@ -71,7 +82,11 @@ def upload_file(settings: Settings, bucket: str, key: str, local_path: str) -> s
 
 def presign_get(settings: Settings, bucket: str, key: str, expires_in: int | None = None) -> str:
     """Generate a presigned GET URL for private downloads."""
-    if not settings.aws_access_key_id or not settings.aws_secret_access_key or not settings.aws_region:
+    if (
+        not settings.aws_access_key_id
+        or not settings.aws_secret_access_key
+        or not settings.aws_region
+    ):
         raise ValueError("AWS S3 not configured")
     client = _client(settings)
     exp = expires_in or max(settings.s3_presign_exp_seconds, 60)
@@ -83,7 +98,11 @@ def presign_get(settings: Settings, bucket: str, key: str, expires_in: int | Non
 
 
 def delete_object(settings: Settings, bucket: str, key: str) -> None:
-    if not settings.aws_access_key_id or not settings.aws_secret_access_key or not settings.aws_region:
+    if (
+        not settings.aws_access_key_id
+        or not settings.aws_secret_access_key
+        or not settings.aws_region
+    ):
         raise ValueError("AWS S3 not configured")
     client = _client(settings)
     client.delete_object(Bucket=bucket, Key=key)
@@ -102,4 +121,3 @@ def delete_s3_uri(settings: Settings, uri: str) -> None:
     except Exception:
         # best-effort; do not raise to avoid blocking cleanup
         return
-

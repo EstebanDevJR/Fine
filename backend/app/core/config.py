@@ -1,6 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import Field, HttpUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -25,30 +25,30 @@ class Settings(BaseSettings):
     data_path: Path = Path("./data").resolve()
     redis_url: str = "redis://redis:6379/0"
 
-    openai_api_key: Optional[str] = None
-    openai_api_base: Optional[HttpUrl] = None
+    openai_api_key: str | None = None
+    openai_api_base: HttpUrl | None = None
     openai_model: str = "gpt-4o-mini"
 
     # Supabase Auth
-    supabase_url: Optional[HttpUrl] = None
-    supabase_jwks_url: Optional[HttpUrl] = None
-    supabase_anon_key: Optional[str] = None
-    supabase_jwt_secret: Optional[str] = None
-    supabase_service_role_key: Optional[str] = None
+    supabase_url: HttpUrl | None = None
+    supabase_jwks_url: HttpUrl | None = None
+    supabase_anon_key: str | None = None
+    supabase_jwt_secret: str | None = None
+    supabase_service_role_key: str | None = None
 
     # AWS / S3 storage
-    aws_access_key_id: Optional[str] = None
-    aws_secret_access_key: Optional[str] = None
-    aws_region: Optional[str] = None
-    s3_bucket_datasets: Optional[str] = None
-    s3_bucket_models: Optional[str] = None
-    s3_bucket_reports: Optional[str] = None
-    s3_bucket_artifacts: Optional[str] = None
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: str | None = None
+    aws_region: str | None = None
+    s3_bucket_datasets: str | None = None
+    s3_bucket_models: str | None = None
+    s3_bucket_reports: str | None = None
+    s3_bucket_artifacts: str | None = None
     s3_presign_exp_seconds: int = 900
 
-    langfuse_public_key: Optional[str] = None
-    langfuse_secret_key: Optional[str] = None
-    langfuse_host: Optional[str] = None
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = None
+    langfuse_host: str | None = None
 
     storage_base_path: Path = Path("./app/storage").resolve()
     reports_path: Path = storage_base_path / "reports"

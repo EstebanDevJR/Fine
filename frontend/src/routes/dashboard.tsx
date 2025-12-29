@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react'
 import { useNavigate, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
-import { useAuth } from '../api/AuthProvider'
+import { useAuth } from '../api/useAuth'
 import {
   Activity,
   BarChart2,
@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   CheckCircle2,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 type Asset = { id: number; name?: string; created_at?: string }
 type Analysis = { id: number; status: string; dataset_id: number; model_id: number; created_at: string }
@@ -30,17 +31,6 @@ export function DashboardPage() {
   const datasets = useQuery<Asset[]>({ queryKey: ['datasets'], queryFn: api.listDatasets, enabled: Boolean(user) })
   const models = useQuery<Asset[]>({ queryKey: ['models'], queryFn: api.listModels, enabled: Boolean(user) })
   const analyses = useQuery<Analysis[]>({ queryKey: ['analyses'], queryFn: api.listAnalyses, enabled: Boolean(user) })
-
-  if (loading || (!user && loading === false)) {
-    return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-10 w-10 text-amber-500 animate-spin" />
-          <p className="text-[var(--text-muted)] text-sm font-medium tracking-wide animate-pulse">Loading your workspace...</p>
-        </div>
-      </div>
-    )
-  }
 
   const datasetCount = datasets.data?.length ?? 0
   const modelCount = models.data?.length ?? 0
@@ -70,6 +60,17 @@ export function DashboardPage() {
 
     return { successCount: success, failureCount: failure, successRate: rate, lastRunLabel: last, weeklyTrend: trend }
   }, [analyses.data])
+
+  if (loading || (!user && loading === false)) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-10 w-10 text-amber-500 animate-spin" />
+          <p className="text-[var(--text-muted)] text-sm font-medium tracking-wide animate-pulse">Loading your workspace...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
@@ -182,8 +183,20 @@ export function DashboardPage() {
   )
 }
 
-function StatCard({ label, value, icon: Icon, color }: any) {
-  const colors: any = {
+type StatColor = 'emerald' | 'blue' | 'amber' | 'cyan'
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+}: {
+  label: string
+  value: number | string
+  icon: LucideIcon
+  color: StatColor
+}) {
+  const colors: Record<StatColor, string> = {
     emerald: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
     blue: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
     amber: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
@@ -204,7 +217,17 @@ function StatCard({ label, value, icon: Icon, color }: any) {
   )
 }
 
-function MiniList({ title, items, empty, icon: Icon }: any) {
+function MiniList({
+  title,
+  items,
+  empty,
+  icon: Icon,
+}: {
+  title: string
+  items: Array<{ id: number; name?: string; created_at?: string }>
+  empty: string
+  icon: LucideIcon
+}) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
@@ -217,7 +240,7 @@ function MiniList({ title, items, empty, icon: Icon }: any) {
         {items.length === 0 ? (
           <div className="p-4 text-[11px] text-[var(--text-muted)]">{empty}</div>
         ) : (
-          items.slice(-5).reverse().map((item: any) => (
+          items.slice(-5).reverse().map((item) => (
             <div key={item.id} className="p-4 flex items-center gap-3">
               <div className="text-[10px] font-mono text-[var(--text-muted)]">#{item.id}</div>
               <div className="flex-1">
@@ -234,8 +257,18 @@ function MiniList({ title, items, empty, icon: Icon }: any) {
   )
 }
 
-function KpiBadge({ icon, label, value, tone }: { icon: JSX.Element; label: string; value: any; tone: 'emerald' | 'rose' | 'amber' | 'cyan' }) {
-  const tones: any = {
+function KpiBadge({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: JSX.Element
+  label: string
+  value: React.ReactNode
+  tone: 'emerald' | 'rose' | 'amber' | 'cyan'
+}) {
+  const tones: Record<'emerald' | 'rose' | 'amber' | 'cyan', string> = {
     emerald: 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400',
     rose: 'border-rose-500/30 bg-rose-500/5 text-rose-400',
     amber: 'border-amber-500/30 bg-amber-500/5 text-amber-400',

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { useAuth } from '../api/AuthProvider'
+import { useAuth } from '../api/useAuth'
 import { api } from '../api/client'
-import { User as UserIcon, Mail, Shield, Clock3, LogOut, Trash2 } from 'lucide-react'
+import { User as UserIcon, Shield, Clock3, LogOut, Trash2 } from 'lucide-react'
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   return (

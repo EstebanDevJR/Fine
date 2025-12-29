@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 from pathlib import Path
 
@@ -27,23 +28,17 @@ router = APIRouter()
 async def _delete_analysis_artifacts(db: AsyncSession, user_id: str, settings: Settings) -> None:
     analyses = await list_analyses(db, user_id)
     for a in analyses:
-        try:
+        with contextlib.suppress(Exception):
             if a.report_path and not a.report_path.startswith("s3://"):
                 Path(a.report_path).unlink(missing_ok=True)  # type: ignore[arg-type]
             if a.pdf_path and a.pdf_path and not a.pdf_path.startswith("s3://"):
                 Path(a.pdf_path).unlink(missing_ok=True)  # type: ignore[arg-type]
-        except Exception:
-            pass
         if a.report_path and a.report_path.startswith("s3://"):
-            try:
+            with contextlib.suppress(Exception):
                 delete_s3_uri(settings, a.report_path)
-            except Exception:
-                pass
         if a.pdf_path and a.pdf_path.startswith("s3://"):
-            try:
+            with contextlib.suppress(Exception):
                 delete_s3_uri(settings, a.pdf_path)
-            except Exception:
-                pass
         await delete_analysis(db, a.id, user_id)
 
 
@@ -52,33 +47,23 @@ async def _delete_datasets(db: AsyncSession, user_id: str, settings: Settings) -
     for d in datasets:
         analyses = await list_analyses_by_dataset(db, d.id, user_id)
         for a in analyses:
-            try:
+            with contextlib.suppress(Exception):
                 if a.report_path and not a.report_path.startswith("s3://"):
                     Path(a.report_path).unlink(missing_ok=True)  # type: ignore[arg-type]
                 if a.pdf_path and a.pdf_path and not a.pdf_path.startswith("s3://"):
                     Path(a.pdf_path).unlink(missing_ok=True)  # type: ignore[arg-type]
-            except Exception:
-                pass
             if a.report_path and a.report_path.startswith("s3://"):
-                try:
+                with contextlib.suppress(Exception):
                     delete_s3_uri(settings, a.report_path)
-                except Exception:
-                    pass
             if a.pdf_path and a.pdf_path.startswith("s3://"):
-                try:
+                with contextlib.suppress(Exception):
                     delete_s3_uri(settings, a.pdf_path)
-                except Exception:
-                    pass
             await delete_analysis(db, a.id, user_id)
-        try:
+        with contextlib.suppress(Exception):
             Path(d.path).unlink(missing_ok=True)  # type: ignore[arg-type]
-        except Exception:
-            pass
         if d.s3_uri:
-            try:
+            with contextlib.suppress(Exception):
                 delete_s3_uri(settings, d.s3_uri)
-            except Exception:
-                pass
         await delete_dataset(db, d.id, user_id)
 
 
@@ -87,33 +72,23 @@ async def _delete_models(db: AsyncSession, user_id: str, settings: Settings) -> 
     for m in models:
         analyses = await list_analyses_by_model(db, m.id, user_id)
         for a in analyses:
-            try:
+            with contextlib.suppress(Exception):
                 if a.report_path and not a.report_path.startswith("s3://"):
                     Path(a.report_path).unlink(missing_ok=True)  # type: ignore[arg-type]
                 if a.pdf_path and a.pdf_path and not a.pdf_path.startswith("s3://"):
                     Path(a.pdf_path).unlink(missing_ok=True)  # type: ignore[arg-type]
-            except Exception:
-                pass
             if a.report_path and a.report_path.startswith("s3://"):
-                try:
+                with contextlib.suppress(Exception):
                     delete_s3_uri(settings, a.report_path)
-                except Exception:
-                    pass
             if a.pdf_path and a.pdf_path.startswith("s3://"):
-                try:
+                with contextlib.suppress(Exception):
                     delete_s3_uri(settings, a.pdf_path)
-                except Exception:
-                    pass
             await delete_analysis(db, a.id, user_id)
-        try:
+        with contextlib.suppress(Exception):
             Path(m.path).unlink(missing_ok=True)  # type: ignore[arg-type]
-        except Exception:
-            pass
         if m.s3_uri:
-            try:
+            with contextlib.suppress(Exception):
                 delete_s3_uri(settings, m.s3_uri)
-            except Exception:
-                pass
         await delete_model(db, m.id, user_id)
 
 
@@ -164,4 +139,3 @@ async def delete_account(
     await _delete_models(db, user_id, settings)
     await _delete_supabase_user(settings, user_id)
     return {}
-

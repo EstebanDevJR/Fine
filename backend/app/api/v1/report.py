@@ -1,20 +1,21 @@
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
-from starlette.background import BackgroundTask
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.background import BackgroundTask
 
 from app.api.deps import get_app_settings, get_db
 from app.core.auth import get_current_user
 from app.core.config import Settings
-from app.domain.audit.repository import get_dataset, get_model, get_analysis
-from app.services.report_service import ReportResult, generate_report
 from app.core.ratelimit import rate_limit
 from app.core.s3 import download_to_path, presign_get
+from app.domain.audit.repository import get_analysis, get_dataset, get_model
+from app.services.report_service import ReportResult, generate_report
 
 router = APIRouter(tags=["report"])
 
@@ -87,8 +88,10 @@ async def download_analysis_report(
         try:
             without_scheme = row.report_path[len("s3://") :]
             bucket, key = without_scheme.split("/", 1)
-        except Exception:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid S3 report URI")
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid S3 report URI"
+            ) from exc
 
         tmp_dir = (settings.reports_path / "_downloads").resolve()
         tmp_dir.mkdir(parents=True, exist_ok=True)
@@ -96,14 +99,15 @@ async def download_analysis_report(
 
         try:
             download_to_path(settings, bucket, key, str(tmp_path))
-        except Exception:
-            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to fetch report from storage")
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Failed to fetch report from storage",
+            ) from exc
 
         def _cleanup(p: str) -> None:
-            try:
+            with contextlib.suppress(Exception):
                 Path(p).unlink(missing_ok=True)  # type: ignore[arg-type]
-            except Exception:
-                return
 
         return FileResponse(
             str(tmp_path),
@@ -117,8 +121,10 @@ async def download_analysis_report(
     try:
         base = settings.reports_path.resolve()
         resolved = report_path.resolve()
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid report path")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid report path"
+        ) from exc
 
     # Prevent path traversal / arbitrary file reads
     if base not in resolved.parents and resolved != base:
@@ -145,17 +151,23 @@ async def presign_analysis_report(
     if not row or not row.report_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
     if not row.report_path.startswith("s3://"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Report is not stored in S3")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Report is not stored in S3"
+        )
 
     try:
         without_scheme = row.report_path[len("s3://") :]
         bucket, key = without_scheme.split("/", 1)
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid S3 report URI")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid S3 report URI"
+        ) from exc
 
     try:
         url = presign_get(settings, bucket, key)
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Storage not configured")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Storage not configured"
+        ) from exc
 
     return {"url": url}

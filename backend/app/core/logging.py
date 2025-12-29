@@ -1,13 +1,13 @@
 import logging
 import logging.config
-from typing import Any, Dict
+from typing import Any
 
 import structlog
 
 from app.core.config import Settings
 
 
-def _structlog_config(level: str) -> Dict[str, Any]:
+def _structlog_config(level: str) -> dict[str, Any]:
     return {
         "version": 1,
         "disable_existing_loggers": False,
@@ -48,6 +48,8 @@ def configure_logging(settings: Settings) -> None:
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         logger_factory=structlog.stdlib.LoggerFactory(),
-        wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(settings.log_level)),
+        wrapper_class=structlog.make_filtering_bound_logger(
+            logging.getLevelName(settings.log_level)
+        ),
         cache_logger_on_first_use=True,
     )

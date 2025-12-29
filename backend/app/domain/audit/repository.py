@@ -1,23 +1,28 @@
 from __future__ import annotations
 
-from typing import Optional
 import uuid
 
-from sqlmodel import select, delete
+from sqlmodel import delete, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.models import Analysis, Dataset, ModelArtifact
 
 
-async def get_dataset(db: AsyncSession, dataset_id: int, owner_id: str) -> Optional[Dataset]:
+async def get_dataset(db: AsyncSession, dataset_id: int, owner_id: str) -> Dataset | None:
     owner_uuid = uuid.UUID(owner_id)
-    res = await db.exec(select(Dataset).where(Dataset.id == dataset_id, Dataset.owner_id == owner_uuid))
+    res = await db.exec(
+        select(Dataset).where(Dataset.id == dataset_id, Dataset.owner_id == owner_uuid)
+    )
     return res.first()
 
 
-async def get_model(db: AsyncSession, model_id: int, owner_id: str) -> Optional[ModelArtifact]:
+async def get_model(db: AsyncSession, model_id: int, owner_id: str) -> ModelArtifact | None:
     owner_uuid = uuid.UUID(owner_id)
-    res = await db.exec(select(ModelArtifact).where(ModelArtifact.id == model_id, ModelArtifact.owner_id == owner_uuid))
+    res = await db.exec(
+        select(ModelArtifact).where(
+            ModelArtifact.id == model_id, ModelArtifact.owner_id == owner_uuid
+        )
+    )
     return res.first()
 
 
@@ -27,9 +32,9 @@ async def create_analysis(
     dataset_id: int,
     model_id: int,
     status: str,
-    result_json: Optional[str] = None,
-    report_path: Optional[str] = None,
-    pdf_path: Optional[str] = None,
+    result_json: str | None = None,
+    report_path: str | None = None,
+    pdf_path: str | None = None,
 ) -> Analysis:
     owner_uuid = uuid.UUID(owner_id)
     analysis = Analysis(
@@ -49,25 +54,35 @@ async def create_analysis(
 
 async def list_analyses(db: AsyncSession, owner_id: str) -> list[Analysis]:
     owner_uuid = uuid.UUID(owner_id)
-    res = await db.exec(select(Analysis).where(Analysis.owner_id == owner_uuid).order_by(Analysis.created_at.desc()))
+    res = await db.exec(
+        select(Analysis).where(Analysis.owner_id == owner_uuid).order_by(Analysis.created_at.desc())
+    )
     return res.all()
 
 
-async def get_analysis(db: AsyncSession, analysis_id: int, owner_id: str) -> Optional[Analysis]:
+async def get_analysis(db: AsyncSession, analysis_id: int, owner_id: str) -> Analysis | None:
     owner_uuid = uuid.UUID(owner_id)
-    res = await db.exec(select(Analysis).where(Analysis.id == analysis_id, Analysis.owner_id == owner_uuid))
+    res = await db.exec(
+        select(Analysis).where(Analysis.id == analysis_id, Analysis.owner_id == owner_uuid)
+    )
     return res.first()
 
 
-async def list_analyses_by_dataset(db: AsyncSession, dataset_id: int, owner_id: str) -> list[Analysis]:
+async def list_analyses_by_dataset(
+    db: AsyncSession, dataset_id: int, owner_id: str
+) -> list[Analysis]:
     owner_uuid = uuid.UUID(owner_id)
-    res = await db.exec(select(Analysis).where(Analysis.dataset_id == dataset_id, Analysis.owner_id == owner_uuid))
+    res = await db.exec(
+        select(Analysis).where(Analysis.dataset_id == dataset_id, Analysis.owner_id == owner_uuid)
+    )
     return res.all()
 
 
 async def list_analyses_by_model(db: AsyncSession, model_id: int, owner_id: str) -> list[Analysis]:
     owner_uuid = uuid.UUID(owner_id)
-    res = await db.exec(select(Analysis).where(Analysis.model_id == model_id, Analysis.owner_id == owner_uuid))
+    res = await db.exec(
+        select(Analysis).where(Analysis.model_id == model_id, Analysis.owner_id == owner_uuid)
+    )
     return res.all()
 
 
@@ -81,7 +96,9 @@ async def delete_dataset(db: AsyncSession, dataset_id: int, owner_id: str) -> bo
 
 async def delete_model(db: AsyncSession, model_id: int, owner_id: str) -> bool:
     owner_uuid = uuid.UUID(owner_id)
-    stmt = delete(ModelArtifact).where(ModelArtifact.id == model_id, ModelArtifact.owner_id == owner_uuid)
+    stmt = delete(ModelArtifact).where(
+        ModelArtifact.id == model_id, ModelArtifact.owner_id == owner_uuid
+    )
     res = await db.exec(stmt)
     await db.commit()
     return res.rowcount > 0
@@ -93,4 +110,6 @@ async def delete_analysis(db: AsyncSession, analysis_id: int, owner_id: str) -> 
     res = await db.exec(stmt)
     await db.commit()
     return res.rowcount > 0
+
+
 # state persistence

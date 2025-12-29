@@ -17,4 +17,3 @@ def ensure_allowed_extension(filename: str, allowed: set[str]) -> str:
             detail=f"Extensión no permitida: .{ext}. Permitidas: {', '.join(sorted(allowed))}",
         )
     return ext
-

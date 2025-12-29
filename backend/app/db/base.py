@@ -1,4 +1,3 @@
-from app.db import models  # noqa: F401
+from app.db import models
 
 __all__ = ["models"]
-

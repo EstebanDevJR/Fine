@@ -29,4 +29,3 @@ async def save_upload_file(upload_file: UploadFile, destination: Path) -> tuple[
 
     await upload_file.seek(0)
     return size, sha.hexdigest()
-

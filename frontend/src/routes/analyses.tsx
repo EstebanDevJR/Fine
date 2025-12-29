@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
-import { useAuth } from '../api/AuthProvider'
+import { useAuth } from '../api/useAuth'
+import type { Analysis as ApiAnalysis } from '../api/schemas'
+import type { LucideIcon } from 'lucide-react'
 import {
   Activity,
   BarChart2,
@@ -21,6 +23,18 @@ import {
   AlertTriangle,
   Trash2,
 } from 'lucide-react'
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function getEvalMetrics(result: unknown): Record<string, unknown> | undefined {
+  if (!isRecord(result)) return undefined
+  const evalRes = result['evaluate']
+  if (!isRecord(evalRes)) return undefined
+  const metrics = evalRes['metrics']
+  return isRecord(metrics) ? metrics : undefined
+}
 
 type Analysis = {
   id: number
@@ -44,36 +58,38 @@ const statusStyles: Record<string, { text: string; bg: string; dot: string }> = 
 export function AnalysesPage() {
   const { user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
-  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const initialSelectedId = (() => {
+    const search = new URLSearchParams(window.location.search)
+    const fromParam = search.get('id')
+    const parsed = fromParam ? Number(fromParam) : Number.NaN
+    return Number.isFinite(parsed) ? parsed : null
+  })()
+  const [selectedId, setSelectedId] = useState<number | null>(initialSelectedId)
   const [showRaw, setShowRaw] = useState(false)
   const qc = useQueryClient()
+  const didAutoSelectRef = useRef(false)
 
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: '/auth' })
   }, [authLoading, user, navigate])
 
-  const listQuery = useQuery<Analysis[]>({
+  const listQuery = useQuery<ApiAnalysis[]>({
     queryKey: ['analyses'],
-    queryFn: api.listAnalyses as any,
+    queryFn: api.listAnalyses,
     enabled: Boolean(user),
+    onSuccess: (data) => {
+      if (didAutoSelectRef.current) return
+      if (initialSelectedId !== null) return
+      if (!selectedId && data.length) {
+        didAutoSelectRef.current = true
+        setSelectedId(data[data.length - 1].id)
+      }
+    },
   })
 
-  useEffect(() => {
-    const search = new URLSearchParams(window.location.search)
-    const fromParam = search.get('id')
-    if (fromParam) {
-      const parsed = Number(fromParam)
-      if (!Number.isNaN(parsed)) setSelectedId(parsed)
-      return
-    }
-    if (listQuery.data?.length && !selectedId) {
-      setSelectedId(listQuery.data[listQuery.data.length - 1].id)
-    }
-  }, [listQuery.data, selectedId])
-
-  const detailQuery = useQuery<Analysis>({
+  const detailQuery = useQuery<ApiAnalysis>({
     queryKey: ['analysis', selectedId],
-    queryFn: () => api.getAnalysis(selectedId as number) as any,
+    queryFn: () => api.getAnalysis(selectedId as number),
     enabled: Boolean(selectedId),
   })
 
@@ -92,15 +108,13 @@ export function AnalysesPage() {
     },
   })
 
-  const selected = detailQuery.data
+  const selected = detailQuery.data as unknown as Analysis | undefined
   const statusKey = (selected?.status || '').toUpperCase()
   const statusCfg = statusStyles[statusKey] || statusStyles.PENDING
 
   const total = listQuery.data?.length ?? 0
-  const lastUpdated = useMemo(() => {
-    if (!selected?.created_at) return ''
-    return new Date(selected.created_at).toLocaleString()
-  }, [selected?.created_at])
+  const createdAt = selected?.created_at ?? null
+  const lastUpdated = createdAt ? new Date(createdAt).toLocaleString() : ''
 
   const renderDeleteModal = () => {
     if (!pendingDelete) return null
@@ -287,7 +301,9 @@ export function AnalysesPage() {
                 <div className="flex flex-wrap gap-3">
                   {selected.result && (
                     <button
-                      onClick={() => downloadResult(selected.result as any, selected.id)}
+                      onClick={() => {
+                        if (isRecord(selected.result)) downloadResult(selected.result, selected.id)
+                      }}
                       className="px-4 py-3 rounded-xl border border-[var(--card-border)] text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 hover:bg-[var(--text)] hover:text-[var(--bg)] transition-all"
                     >
                       <Download className="w-4 h-4" />
@@ -313,7 +329,7 @@ export function AnalysesPage() {
                   )}
                 </div>
 
-                <KeyMetrics metrics={(selected.result as any)?.evaluate?.metrics} />
+                <KeyMetrics metrics={getEvalMetrics(selected.result)} />
 
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -378,8 +394,20 @@ function downloadResult(result: Record<string, unknown>, id?: number) {
   URL.revokeObjectURL(url)
 }
 
-function MetricCard({ icon: Icon, label, value, color }: any) {
-  const colors: any = {
+type MetricColor = 'emerald' | 'blue' | 'rose' | 'amber'
+
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  color,
+}: {
+  icon: LucideIcon
+  label: string
+  value: number | string
+  color: MetricColor
+}) {
+  const colors: Record<MetricColor, string> = {
     emerald: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
     blue: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
     rose: 'text-rose-500 bg-rose-500/10 border-rose-500/20',
@@ -415,7 +443,7 @@ function ResultPanels({
   result,
   analysisId,
 }: {
-  result?: Record<string, any> | null
+  result?: Record<string, unknown> | null
   analysisId?: number
 }) {
   if (!result) {
@@ -457,20 +485,30 @@ function ResultPanels({
           <div className="space-y-2">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Permutation importance</p>
             <div className="space-y-2">
-              {(xai.permutation_importance || []).map((item: any) => (
-                <MetricBar key={item.feature} label={item.feature} value={item.importance_mean} />
-              ))}
+              {(() => {
+                if (!isRecord(xai)) return null
+                const pi = xai['permutation_importance']
+                if (!Array.isArray(pi)) return null
+                return (pi as Array<unknown>)
+                  .map((raw) => (isRecord(raw) ? raw : null))
+                  .filter(Boolean)
+                  .map((item) => {
+                    const feature = typeof item!['feature'] === 'string' ? (item!['feature'] as string) : 'feature'
+                    const val = Number(item!['importance_mean'] ?? 0)
+                    return <MetricBar key={feature} label={feature} value={val} />
+                  })
+              })()}
             </div>
           </div>
-          {xai.shap_summary?.feature_names && (
+          {isRecord(xai) && isRecord(xai['shap_summary']) && Array.isArray((xai['shap_summary'] as Record<string, unknown>)['feature_names']) && (
             <div className="pt-3">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-2">SHAP mean |abs|</p>
               <div className="space-y-2">
-                {xai.shap_summary.feature_names.map((name: string, idx: number) => (
+                {((xai['shap_summary'] as Record<string, unknown>)['feature_names'] as string[]).map((name: string, idx: number) => (
                   <MetricBar
                     key={name}
                     label={name}
-                    value={xai.shap_summary.global_mean_abs?.[idx] ?? 0}
+                    value={Number(((xai['shap_summary'] as Record<string, unknown>)['global_mean_abs'] as unknown[] | undefined)?.[idx] ?? 0)}
                     colorClass="bg-blue-500/70"
                   />
                 ))}
@@ -576,7 +614,7 @@ function MetricBar({ label, value, colorClass = 'bg-emerald-500/70' }: { label: 
   )
 }
 
-function Pill({ label, value }: { label: string; value: any }) {
+function Pill({ label, value }: { label: string; value: unknown }) {
   return (
     <span className="px-2 py-1 rounded-lg border border-[var(--card-border)] bg-[var(--bg)]/40 text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)]">
       {label}: {value}
@@ -602,29 +640,32 @@ function KeyMetrics({ metrics }: { metrics?: Record<string, number> }) {
   )
 }
 
-function SummaryStrip({ result }: { result: any }) {
-  const metrics = result?.evaluate?.metrics || {}
-  const fairness = result?.fairness
-  const diag = result?.diagnose
+function SummaryStrip({ result }: { result: Record<string, unknown> }) {
+  const metrics = getEvalMetrics(result) || {}
+  const fairness = isRecord(result) ? result['fairness'] : undefined
+  const diag = isRecord(result) ? result['diagnose'] : undefined
 
-  const fmt = (v: any) => {
+  const fmt = (v: unknown) => {
     if (v === null || v === undefined || Number.isNaN(Number(v))) return '—'
     if (typeof v === 'number') return v.toFixed(3)
     return String(v)
   }
 
   const items = [
-    { label: 'Accuracy', value: fmt(metrics.accuracy) },
-    { label: 'F1', value: fmt(metrics.f1_macro || metrics.f1) },
-    { label: 'ROC AUC', value: fmt(metrics.roc_auc) },
-    { label: 'PR AUC', value: fmt(metrics.pr_auc) },
-    fairness?.skipped
+    { label: 'Accuracy', value: fmt(metrics['accuracy']) },
+    { label: 'F1', value: fmt((metrics['f1_macro'] as unknown) ?? metrics['f1']) },
+    { label: 'ROC AUC', value: fmt(metrics['roc_auc']) },
+    { label: 'PR AUC', value: fmt(metrics['pr_auc']) },
+    isRecord(fairness) && fairness['skipped']
       ? { label: 'Fairness', value: 'Skipped' }
       : fairness
         ? { label: 'Fairness', value: 'Checked' }
         : null,
-    diag?.summary
-      ? { label: 'Diagnosis', value: diag.summary.length > 60 ? `${diag.summary.slice(0, 60)}…` : diag.summary }
+    isRecord(diag) && typeof diag['summary'] === 'string'
+      ? {
+          label: 'Diagnosis',
+          value: (diag['summary'] as string).length > 60 ? `${(diag['summary'] as string).slice(0, 60)}…` : (diag['summary'] as string),
+        }
       : null,
   ].filter(Boolean) as { label: string; value: string }[]
 
@@ -650,57 +691,6 @@ function stripJsonString(text: string) {
   } catch {
     return text
   }
-}
-
-function DiagnosisMarkdown({
-  summary,
-  risks,
-  recommendations,
-}: {
-  summary?: string
-  risks?: string[]
-  recommendations?: string[]
-}) {
-  const mdSummary = stripJsonString(summary || '')
-
-  return (
-    <div className="space-y-4">
-      {mdSummary && (
-        <div className="rounded-2xl border border-[var(--card-border)] bg-[var(--bg)]/40 p-4 prose prose-invert prose-sm max-w-none">
-          <p className="font-semibold text-[var(--text)]">Summary</p>
-          <p className="text-[13px] leading-relaxed text-[var(--text)] whitespace-pre-wrap">{mdSummary}</p>
-        </div>
-      )}
-
-      {(risks || []).length > 0 && (
-        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 space-y-2">
-          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-500 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" />
-            Risks
-          </p>
-          <ul className="list-disc list-inside text-[12px] leading-relaxed text-[var(--text)] space-y-1">
-            {risks!.map((r, i) => (
-              <li key={i}>{r}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {(recommendations || []).length > 0 && (
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-2">
-          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-500 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4" />
-            Recommendations
-          </p>
-          <ul className="list-disc list-inside text-[12px] leading-relaxed text-[var(--text)] space-y-1">
-            {recommendations!.map((r, i) => (
-              <li key={i}>{r}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  )
 }
 
 function DiagnosisNarrative({
@@ -752,23 +742,15 @@ function ReportViewer({
   fairness,
   diagnose,
 }: {
-  result?: Record<string, any> | null
-  evalRes?: any
-  xai?: any
-  sensitivity?: any
-  robustness?: any
-  fairness?: any
-  diagnose?: any
+  result?: Record<string, unknown> | null
+  evalRes?: unknown
+  xai?: unknown
+  sensitivity?: unknown
+  robustness?: unknown
+  fairness?: unknown
+  diagnose?: unknown
 }) {
-  if (!result) {
-    return (
-      <p className="text-[11px] text-[var(--text-muted)]">
-        No analysis data available to generate report.
-      </p>
-    )
-  }
-
-  const formatValue = (v: any): string => {
+  const formatValue = (v: unknown): string => {
     if (v === null || v === undefined || Number.isNaN(Number(v))) return 'N/A'
     if (typeof v === 'number') {
       if (Math.abs(v) < 0.0001) return v.toExponential(2)
@@ -778,13 +760,15 @@ function ReportViewer({
     return String(v)
   }
 
-  const formatPercent = (v: any): string => {
+  const formatPercent = (v: unknown): string => {
     if (v === null || v === undefined || Number.isNaN(Number(v))) return 'N/A'
     return `${(Number(v) * 100).toFixed(2)}%`
   }
 
   // Generate the full scientific report in Markdown (expensive; memoized below)
-  const generateReport = (): string => {
+  const generateReport = useCallback((): string => {
+    if (!result) return 'No analysis data available to generate report.'
+
     let report = ''
     
     // Title and Header
@@ -880,37 +864,52 @@ function ReportViewer({
     if (xai) {
       report += '## 3. Model Interpretability Analysis\n\n'
       
-      if (xai.permutation_importance && xai.permutation_importance.length > 0) {
+      if (isRecord(xai) && Array.isArray(xai['permutation_importance']) && (xai['permutation_importance'] as unknown[]).length > 0) {
         report += '### Permutation Importance Analysis\n\n'
         report += 'The following features are ranked by their importance to model predictions:\n\n'
         
         report += '| Rank | Feature | Importance | Std Dev |\n'
         report += '|------|---------|------------|----------|\n'
-        xai.permutation_importance.slice(0, 10).forEach((item: any, idx: number) => {
-          const std = item.importance_std !== undefined ? `±${formatValue(item.importance_std)}` : 'N/A'
-          report += `| ${idx + 1} | ${item.feature} | ${formatValue(item.importance_mean)} | ${std} |\n`
+        ;(xai['permutation_importance'] as unknown[]).slice(0, 10).forEach((raw, idx: number) => {
+          if (!isRecord(raw)) return
+          const feature = typeof raw['feature'] === 'string' ? (raw['feature'] as string) : 'feature'
+          const mean = raw['importance_mean']
+          const std = raw['importance_std']
+          const stdStr = std !== undefined ? `±${formatValue(std)}` : 'N/A'
+          report += `| ${idx + 1} | ${feature} | ${formatValue(mean)} | ${stdStr} |\n`
         })
         report += '\n'
         
-        const topFeature = xai.permutation_importance[0]
-        if (topFeature) {
-          report += `**Most Important Feature:** "${topFeature.feature}" with an importance score of `
-          report += `${formatValue(topFeature.importance_mean)}. This feature has the greatest impact on model predictions.\n\n`
+        const top = (xai['permutation_importance'] as unknown[])[0]
+        if (isRecord(top) && typeof top['feature'] === 'string') {
+          report += `**Most Important Feature:** "${top['feature'] as string}" with an importance score of `
+          report += `${formatValue(top['importance_mean'])}. This feature has the greatest impact on model predictions.\n\n`
         }
       }
       
-      if (xai.shap_summary?.feature_names && xai.shap_summary.feature_names.length > 0) {
+      if (
+        isRecord(xai) &&
+        isRecord(xai['shap_summary']) &&
+        Array.isArray((xai['shap_summary'] as Record<string, unknown>)['feature_names']) &&
+        ((xai['shap_summary'] as Record<string, unknown>)['feature_names'] as unknown[]).length > 0
+      ) {
         report += '### SHAP (SHapley Additive exPlanations) Analysis\n\n'
         report += 'Global feature importance based on SHAP values:\n\n'
         
-        const shapPairs = xai.shap_summary.feature_names.map((name: string, idx: number) => ({
-          name,
-          value: xai.shap_summary.global_mean_abs?.[idx] ?? 0
-        })).sort((a: any, b: any) => b.value - a.value)
+        const shapSummary = xai['shap_summary'] as Record<string, unknown>
+        const names = shapSummary['feature_names'] as string[]
+        const vals = (shapSummary['global_mean_abs'] as unknown[] | undefined) ?? []
+
+        const shapPairs = names
+          .map((name: string, idx: number) => ({
+            name,
+            value: Number(vals[idx] ?? 0),
+          }))
+          .sort((a, b) => b.value - a.value)
         
         report += '| Rank | Feature | SHAP Value |\n'
         report += '|------|---------|------------|\n'
-        shapPairs.slice(0, 10).forEach((item: any, idx: number) => {
+        shapPairs.slice(0, 10).forEach((item, idx: number) => {
           report += `| ${idx + 1} | ${item.name} | ${formatValue(item.value)} |\n`
         })
         report += '\n'
@@ -1115,9 +1114,13 @@ function ReportViewer({
     report += '*End of Report*\n'
     
     return report
-  }
+  }, [result, evalRes, xai, sensitivity, robustness, fairness, diagnose])
 
-  const reportMarkdown = useMemo(() => generateReport(), [evalRes, xai, sensitivity, robustness, fairness, diagnose])
+  const reportMarkdown = useMemo(() => generateReport(), [generateReport])
+
+  if (!result) {
+    return <p className="text-[11px] text-[var(--text-muted)]">{reportMarkdown}</p>
+  }
 
   return (
     <div className="rounded-2xl border border-[var(--card-border)] bg-[var(--bg)]/40 p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">

@@ -4,14 +4,14 @@ import json
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from app.db.models import Dataset, ModelArtifact
 from app.services.dataset_loader import load_dataset
-from app.services.metrics_service import _compute_permutation, _detect_problem_type, _align_features
+from app.services.metrics_service import _align_features, _compute_permutation, _detect_problem_type
 from app.services.model_loader import load_model
 
 
@@ -29,7 +29,7 @@ class RobustnessResult:
     artifact_path: Path
 
 
-def _save_artifact(base: Path, data: Dict[str, Any], prefix: str) -> Path:
+def _save_artifact(base: Path, data: dict[str, Any], prefix: str) -> Path:
     base.mkdir(parents=True, exist_ok=True)
     path = base / f"{prefix}_{uuid.uuid4().hex}.json"
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2))
@@ -54,7 +54,8 @@ def sensitivity_analysis(
     max_samples: int = 5000,
 ) -> SensitivityResult:
     import time
-    from app.core.metrics import observe_time, incr
+
+    from app.core.metrics import incr, observe_time
 
     start = time.perf_counter()
     df, y, X = load_dataset(dataset)
@@ -138,7 +139,8 @@ def robustness_analysis(
     max_samples: int = 5000,
 ) -> RobustnessResult:
     import time
-    from app.core.metrics import observe_time, incr
+
+    from app.core.metrics import incr, observe_time
 
     start = time.perf_counter()
     df, y, X = load_dataset(dataset)

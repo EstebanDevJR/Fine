@@ -1,22 +1,22 @@
 from __future__ import annotations
 
 import json
+import time
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any
 
 import numpy as np
 import pandas as pd
 from fastapi import HTTPException, status
 
-import time
-
 from app.core.metrics import incr, observe_time
 from app.db.models import Dataset, ModelArtifact
 from app.services.dataset_loader import load_dataset
-from app.services.model_loader import load_model
 from app.services.metrics_service import _align_features
+from app.services.model_loader import load_model
 
 
 @dataclass
@@ -28,7 +28,7 @@ class FairnessResult:
     artifact_path: Path
 
 
-def _save_artifact(base: Path, data: Dict[str, Any]) -> Path:
+def _save_artifact(base: Path, data: dict[str, Any]) -> Path:
     base.mkdir(parents=True, exist_ok=True)
     path = base / f"fairness_{uuid.uuid4().hex}.json"
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2))
@@ -73,8 +73,8 @@ def evaluate_fairness(
     model_artifact: ModelArtifact,
     artifacts_path: Path,
     sensitive_attribute: str,
-    privileged_values: List[Any],
-    unprivileged_values: List[Any],
+    privileged_values: list[Any],
+    unprivileged_values: list[Any],
     positive_label: int | float | str = 1,
 ) -> FairnessResult:
     df, y, X = load_dataset(dataset)

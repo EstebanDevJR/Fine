@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Tuple
 
 import pandas as pd
 from fastapi import HTTPException, status
@@ -19,7 +18,7 @@ def _read_dataset(path: Path, file_format: str) -> pd.DataFrame:
     )
 
 
-def load_dataset(dataset: Dataset) -> Tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
+def load_dataset(dataset: Dataset) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
     """
     Load dataset, return (df, y, X).
     Raises HTTPException if target column missing.

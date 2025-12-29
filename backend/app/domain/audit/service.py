@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from sqlmodel import select
 import uuid
+
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.models import Dataset, ModelArtifact
@@ -82,7 +83,11 @@ async def list_datasets(db: AsyncSession, owner_id: str) -> list[Dataset]:
 async def list_models(db: AsyncSession, owner_id: str) -> list[ModelArtifact]:
     owner_uuid = uuid.UUID(owner_id)
     result = await db.exec(
-        select(ModelArtifact).where(ModelArtifact.owner_id == owner_uuid).order_by(ModelArtifact.created_at.desc())
+        select(ModelArtifact)
+        .where(ModelArtifact.owner_id == owner_uuid)
+        .order_by(ModelArtifact.created_at.desc())
     )
     return result.all()
+
+
 # use case orchestration

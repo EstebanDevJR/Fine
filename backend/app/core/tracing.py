@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from app.core.config import Settings
 
@@ -42,7 +42,9 @@ class TraceWrapper:
     def __init__(self, trace: Any) -> None:
         self._trace = trace
 
-    def span(self, name: str, input: Any | None = None, metadata: dict[str, Any] | None = None) -> _SpanWrapper:
+    def span(
+        self, name: str, input: Any | None = None, metadata: dict[str, Any] | None = None
+    ) -> _SpanWrapper:
         span = self._trace.span(name=name, input=input, metadata=metadata)
         return _SpanWrapper(span)
 
@@ -54,7 +56,7 @@ def build_trace(
     settings: Settings,
     name: str,
     input: Any | None = None,
-    metadata: Optional[dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
 ) -> TraceWrapper | _NoopTrace:
     """Return a TraceWrapper if Langfuse is configured, otherwise a noop trace."""
     if Langfuse is None:
@@ -69,4 +71,3 @@ def build_trace(
     )
     trace = client.trace(name=name, input=input, metadata=metadata)
     return TraceWrapper(trace)
-

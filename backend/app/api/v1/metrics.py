@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from __future__ import annotations
-
 from fastapi import APIRouter, Response
 from pydantic import BaseModel
 
@@ -24,4 +22,3 @@ async def get_metrics() -> MetricSnapshot:
 async def get_metrics_prometheus():
     content = render_prometheus()
     return Response(content=content, media_type="text/plain; version=0.0.4")
-

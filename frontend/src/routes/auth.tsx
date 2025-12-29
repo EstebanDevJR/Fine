@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Mail, Lock, ArrowRight, CheckCircle2, ArrowLeft } from 'lucide-react'
-import { useAuth } from '../api/AuthProvider'
+import { useAuth } from '../api/useAuth'
 import { Logo } from '../components/Logo.tsx'
 
 export function AuthPage() {

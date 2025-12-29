@@ -1,20 +1,20 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from celery import Celery
 
 from app.core.config import get_settings
+from app.core.s3 import build_s3_path, upload_file
 from app.db.session import AsyncSessionLocal
-from app.domain.audit.repository import get_dataset, get_model, create_analysis
-from app.services.stress_service import sensitivity_analysis
-from app.services.metrics_service import evaluate_model
-from app.services.stress_service import robustness_analysis
-from app.services.xai_service import explain_model
-from app.services.fairness_service import evaluate_fairness
+from app.domain.audit.repository import create_analysis, get_dataset, get_model
 from app.services.diagnose_service import diagnose
+from app.services.fairness_service import evaluate_fairness
+from app.services.metrics_service import evaluate_model
 from app.services.report_service import generate_report
-from app.core.s3 import upload_file, build_s3_path
-import json
-from pathlib import Path
+from app.services.stress_service import robustness_analysis, sensitivity_analysis
+from app.services.xai_service import explain_model
 
 settings = get_settings()
 
@@ -220,7 +220,9 @@ def full_audit(
     """Runs the full audit pipeline in sequence and reports progress."""
     import asyncio
 
-    def _report(step_index: int, total_steps: int, step: str, status: str, detail: str | None = None) -> None:
+    def _report(
+        step_index: int, total_steps: int, step: str, status: str, detail: str | None = None
+    ) -> None:
         progress = min(max((step_index / total_steps), 0.0), 1.0)
         meta = {"step": step, "status": status, "progress": round(progress, 3)}
         if detail:
@@ -228,13 +230,16 @@ def full_audit(
         try:
             self.update_state(state="PROGRESS", meta=meta)
         except (Exception, BaseException) as e:
-            # If updating state fails (e.g., corrupted backend state, worker shutdown), 
+            # If updating state fails (e.g., corrupted backend state, worker shutdown),
             # silently continue to avoid cascading errors
             import logging
+
             logger = logging.getLogger(__name__)
             error_type = type(e).__name__
             error_msg = str(e) if e else "Unknown error"
-            logger.warning(f"Failed to update progress state ({error_type}): {error_msg}. Continuing execution...")
+            logger.warning(
+                f"Failed to update progress state ({error_type}): {error_msg}. Continuing execution..."
+            )
 
     async def _run():
         async with AsyncSessionLocal() as db:
@@ -243,7 +248,15 @@ def full_audit(
             if not dataset or not model:
                 return {"error": "dataset or model not found"}
 
-            steps = ["evaluate", "xai", "sensitivity", "robustness", "fairness", "diagnose", "report"]
+            steps = [
+                "evaluate",
+                "xai",
+                "sensitivity",
+                "robustness",
+                "fairness",
+                "diagnose",
+                "report",
+            ]
             total_steps = len(steps)
 
             results: dict = {"problem_type": None}
@@ -316,7 +329,13 @@ def full_audit(
                 _report(fairness_idx + 1, total_steps, "fairness", "completed")
             else:
                 results["fairness"] = {"skipped": True, "reason": "No sensitive attribute provided"}
-                _report(fairness_idx + 1, total_steps, "fairness", "skipped", "No sensitive attribute provided")
+                _report(
+                    fairness_idx + 1,
+                    total_steps,
+                    "fairness",
+                    "skipped",
+                    "No sensitive attribute provided",
+                )
 
             # Diagnose
             _report(5, total_steps, "diagnose", "running")
@@ -357,20 +376,26 @@ def full_audit(
             # Optional: upload report to S3 (TXT file)
             txt_s3 = None
             try:
-                if settings.s3_bucket_reports:
+                if (
+                    settings.s3_bucket_reports
+                    and report_res.txt_path
+                    and report_res.txt_path.exists()
+                ):
                     # Upload TXT to S3
-                    if report_res.txt_path and report_res.txt_path.exists():
-                        txt_key = build_s3_path("reports", owner_id, Path(report_res.txt_path).name)
-                        txt_s3 = upload_file(settings, settings.s3_bucket_reports, txt_key, str(report_res.txt_path))
+                    txt_key = build_s3_path("reports", owner_id, Path(report_res.txt_path).name)
+                    txt_s3 = upload_file(
+                        settings, settings.s3_bucket_reports, txt_key, str(report_res.txt_path)
+                    )
             except Exception as e:
                 # Log error but do not fail the task if upload fails
                 import logging
+
                 logger = logging.getLogger(__name__)
                 logger.error(f"Failed to upload TXT report to S3: {e}")
 
             # Persist analysis record
             final_txt_path = txt_s3 or str(report_res.txt_path)
-            
+
             analysis = await create_analysis(
                 db,
                 owner_id=owner_id,
@@ -392,41 +417,44 @@ def full_audit(
     try:
         return asyncio.run(_run())
     except (Exception, BaseException) as exc:
-        import traceback
         import logging
+        import traceback
+
         logger = logging.getLogger(__name__)
-        
+
         error_msg = str(exc) if exc else "Unknown error"
         error_type = type(exc).__name__ if exc else "UnknownError"
-        
+
         # Don't try to update state for KeyboardInterrupt or SystemExit
         # as these are typically worker shutdown signals
-        if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+        if isinstance(exc, KeyboardInterrupt | SystemExit):
             logger.warning(f"Task interrupted: {error_type}: {error_msg}")
             raise
-        
+
         try:
             # Try to update state, but don't fail if backend has corrupted state
             # Limit error message and traceback to avoid serialization issues
             safe_error_msg = error_msg[:200] if len(error_msg) > 200 else error_msg
             safe_traceback = traceback.format_exc()[:500] if exc else ""
-            
+
             self.update_state(
                 state="FAILURE",
                 meta={
                     "error": safe_error_msg,
                     "error_type": error_type,
                     "step": "full_audit",
-                    "traceback": safe_traceback
-                }
+                    "traceback": safe_traceback,
+                },
             )
         except (Exception, BaseException) as state_error:
             # If updating state fails (e.g., corrupted backend state, serialization error),
             # just log it and continue - don't let this cause cascading failures
             state_error_type = type(state_error).__name__ if state_error else "UnknownError"
             state_error_msg = str(state_error) if state_error else "Unknown error"
-            logger.error(f"Failed to update task state ({state_error_type}): {state_error_msg}. Original error: {error_type}: {error_msg}")
-        
+            logger.error(
+                f"Failed to update task state ({state_error_type}): {state_error_msg}. Original error: {error_type}: {error_msg}"
+            )
+
         # Re-raise the original exception so Celery can handle it
         raise
 

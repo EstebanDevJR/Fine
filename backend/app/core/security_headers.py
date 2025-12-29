@@ -25,8 +25,8 @@ async def security_headers_middleware(request: Request, call_next):
 
     # Minimal CSP (API-only). If you ever serve HTML from backend, revisit this.
     if settings.app_env == "prod":
-        response.headers.setdefault("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
+        response.headers.setdefault(
+            "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"
+        )
 
     return response
-
-

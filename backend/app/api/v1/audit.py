@@ -1,28 +1,34 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 
+from celery.result import AsyncResult
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from celery.result import AsyncResult
 
+from app.ai.graph.audit_graph import run_audit_graph
 from app.api.deps import get_app_settings, get_db
-from app.core.config import Settings
 from app.core.auth import get_current_user
-from app.domain.audit.repository import get_dataset, get_model, list_analyses, get_analysis, delete_analysis
+from app.core.config import Settings
+from app.core.ratelimit import rate_limit
+from app.db.models import Analysis
+from app.domain.audit.repository import (
+    delete_analysis,
+    get_analysis,
+    get_dataset,
+    get_model,
+    list_analyses,
+)
+from app.services.diagnose_service import DiagnosisResult, diagnose
+from app.services.fairness_service import FairnessResult, evaluate_fairness
 from app.services.metrics_service import evaluate_model
 from app.services.stress_service import robustness_analysis, sensitivity_analysis
 from app.services.xai_service import XAIResult, explain_model
-from app.services.fairness_service import FairnessResult, evaluate_fairness
-from app.services.diagnose_service import DiagnosisResult, diagnose
-from app.core.ratelimit import rate_limit
 from app.workers.tasks import celery_app
-from app.ai.graph.audit_graph import run_audit_graph
-from app.domain.audit.schemas import AnalysisResponse
-from app.db.models import Analysis
 
 router = APIRouter(tags=["audit"])
 
@@ -400,7 +406,8 @@ async def get_full_audit_status(
         detail=meta.get("detail") if meta else None,
         error=error_message,
         result=result.result if result.successful() else None,
-        analysis_id=meta.get("analysis_id") or (result.result.get("analysis_id") if isinstance(result.result, dict) else None),
+        analysis_id=meta.get("analysis_id")
+        or (result.result.get("analysis_id") if isinstance(result.result, dict) else None),
     )
 
 
@@ -425,7 +432,9 @@ async def stream_full_audit_status(
                 "step": meta.get("step") if meta else None,
                 "status": meta.get("status") if meta else None,
                 "detail": meta.get("detail") if meta else None,
-                "error": (meta.get("error") if result.failed() and isinstance(meta, dict) else None),
+                "error": (
+                    meta.get("error") if result.failed() and isinstance(meta, dict) else None
+                ),
                 "result": result.result if result.successful() else None,
                 "analysis_id": meta.get("analysis_id")
                 or (result.result.get("analysis_id") if isinstance(result.result, dict) else None),
@@ -463,17 +472,24 @@ async def analysis_qa(
 
     try:
         result = json.loads(row.result_json)
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Analysis payload unreadable")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Analysis payload unreadable"
+        ) from exc
 
     if not settings.openai_api_key:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="LLM not configured")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="LLM not configured"
+        )
 
     try:
         from langchain_core.prompts import ChatPromptTemplate
         from langchain_openai import ChatOpenAI
     except Exception as exc:  # pragma: no cover
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"LLM backend not available: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"LLM backend not available: {exc}",
+        ) from exc
 
     metrics = result.get("evaluate", {}).get("metrics", {}) if isinstance(result, dict) else {}
     diagnose = result.get("diagnose", {}) if isinstance(result, dict) else {}
@@ -544,11 +560,15 @@ async def run_graph_audit(
     settings: Settings = Depends(get_app_settings),
 ) -> GraphAuditResponse:
     try:
-        result_state = await run_audit_graph({**payload.dict(), "owner_id": user_id}, settings=settings)
+        result_state = await run_audit_graph(
+            {**payload.dict(), "owner_id": user_id}, settings=settings
+        )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
+        ) from exc
 
     return GraphAuditResponse(
         status="completed",
@@ -640,24 +660,21 @@ async def delete_user_analysis(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found")
     # Delete report artifacts
     from pathlib import Path
-    try:
+
+    with contextlib.suppress(Exception):
         if row.report_path and not row.report_path.startswith("s3://"):
             Path(row.report_path).unlink(missing_ok=True)  # type: ignore[arg-type]
         if row.pdf_path and not row.pdf_path.startswith("s3://"):
             Path(row.pdf_path).unlink(missing_ok=True)  # type: ignore[arg-type]
-    except Exception:
-        pass
     if row.report_path and row.report_path.startswith("s3://"):
         from app.core.s3 import delete_s3_uri
-        try:
+
+        with contextlib.suppress(Exception):
             delete_s3_uri(settings, row.report_path)
-        except Exception:
-            pass
     if row.pdf_path and row.pdf_path.startswith("s3://"):
         from app.core.s3 import delete_s3_uri
-        try:
+
+        with contextlib.suppress(Exception):
             delete_s3_uri(settings, row.pdf_path)
-        except Exception:
-            pass
     await delete_analysis(db, analysis_id, user_id)
     return {}

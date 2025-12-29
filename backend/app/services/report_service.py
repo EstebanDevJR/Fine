@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from jinja2 import BaseLoader, Environment, select_autoescape
 
@@ -132,15 +132,15 @@ REPORT_TEMPLATE = """
 
 @dataclass
 class RenderContext:
-    dataset: Dict[str, Any]
-    model: Dict[str, Any]
-    metrics: Dict[str, Any]
-    xai: Dict[str, Any]
+    dataset: dict[str, Any]
+    model: dict[str, Any]
+    metrics: dict[str, Any]
+    xai: dict[str, Any]
     shap_pairs: list
-    sensitivity: Dict[str, Any]
-    robustness: Dict[str, Any]
-    fairness: Optional[Dict[str, Any]]
-    diagnosis: Dict[str, Any]
+    sensitivity: dict[str, Any]
+    robustness: dict[str, Any]
+    fairness: dict[str, Any] | None
+    diagnosis: dict[str, Any]
 
 
 def _render_html(context: RenderContext) -> str:
@@ -164,14 +164,16 @@ def generate_report(
     dataset: Dataset,
     model: ModelArtifact,
     settings: Settings,
-    sensitive_attribute: Optional[str] = None,
-    privileged_values: Optional[list[Any]] = None,
-    unprivileged_values: Optional[list[Any]] = None,
+    sensitive_attribute: str | None = None,
+    privileged_values: list[Any] | None = None,
+    unprivileged_values: list[Any] | None = None,
     positive_label: int | float | str = 1,
 ) -> ReportResult:
     exclude_cols = [sensitive_attribute] if sensitive_attribute else []
 
-    metrics_res = evaluate_model(dataset, model, settings.artifacts_path, exclude_columns=exclude_cols or None)
+    metrics_res = evaluate_model(
+        dataset, model, settings.artifacts_path, exclude_columns=exclude_cols or None
+    )
     xai_res = explain_model(
         dataset,
         model,
@@ -220,50 +222,19 @@ def generate_report(
         zip(
             xai_res.shap_summary.get("feature_names", []),
             xai_res.shap_summary.get("global_mean_abs", []),
+            strict=False,
         )
     )
 
-    context = RenderContext(
-        dataset={"name": dataset.name},
-        model={"name": model.name},
-        metrics={
-            "problem_type": metrics_res.problem_type,
-            "metrics": metrics_res.metrics,
-            "n_samples": metrics_res.n_samples,
-            "n_features": metrics_res.n_features,
-            "n_classes": metrics_res.n_classes,
-        },
-        xai={"permutation_importance": xai_res.permutation_importance},
-        shap_pairs=shap_pairs,
-        sensitivity={
-            "label_flip_rate": sens_res.label_flip_rate,
-            "proba_shift_mean": sens_res.proba_shift_mean,
-        },
-        robustness={
-            "metric_drop": rob_res.metric_drop,
-            "missing_feature_impact": rob_res.missing_feature_impact,
-        },
-        fairness={
-            "demographic_parity_diff": fairness_payload.demographic_parity_diff,
-            "disparate_impact": fairness_payload.disparate_impact,
-            "equal_opportunity_diff": fairness_payload.equal_opportunity_diff,
-            "predictive_equality_diff": fairness_payload.predictive_equality_diff,
-        }
-        if fairness_payload
-        else None,
-        diagnosis={
-            "summary": diagnosis_res.summary,
-            "risks": diagnosis_res.risks,
-            "recommendations": diagnosis_res.recommendations,
-        },
-    )
+    # Note: we previously built a RenderContext for templated reports; TXT report is generated below.
 
     import time
-    from app.core.metrics import observe_time, incr
     from datetime import datetime
 
+    from app.core.metrics import incr, observe_time
+
     t_start = time.perf_counter()
-    
+
     # Generate markdown report text
     report_lines = []
     report_lines.append("# MODEL AUDIT REPORT")
@@ -278,9 +249,11 @@ def generate_report(
     if diagnosis_res.summary:
         report_lines.append(diagnosis_res.summary)
     else:
-        report_lines.append("This report presents a comprehensive analysis of the machine learning model performance, interpretability, robustness, and fairness characteristics.")
+        report_lines.append(
+            "This report presents a comprehensive analysis of the machine learning model performance, interpretability, robustness, and fairness characteristics."
+        )
     report_lines.append("")
-    
+
     # Dataset characteristics
     report_lines.append("## 2. DATASET CHARACTERISTICS")
     report_lines.append("")
@@ -289,17 +262,17 @@ def generate_report(
     report_lines.append(f"Number of classes: {metrics_res.n_classes}")
     report_lines.append(f"Problem type: {metrics_res.problem_type}")
     report_lines.append("")
-    
+
     # Metrics
     report_lines.append("## 3. MODEL PERFORMANCE METRICS")
     report_lines.append("")
     for key, value in metrics_res.metrics.items():
-        if isinstance(value, (int, float)):
+        if isinstance(value, int | float):
             report_lines.append(f"{key}: {value:.4f}")
         else:
             report_lines.append(f"{key}: {value}")
     report_lines.append("")
-    
+
     # XAI
     report_lines.append("## 4. MODEL INTERPRETABILITY")
     report_lines.append("")
@@ -312,10 +285,14 @@ def generate_report(
     report_lines.append("")
     report_lines.append("### SHAP Global Mean |Absolute|:")
     for name, val in shap_pairs[:10]:
-        val_formatted = f"{val:.4f}" if val is not None and not (isinstance(val, float) and (val != val)) else "N/A"
+        val_formatted = (
+            f"{val:.4f}"
+            if val is not None and not (isinstance(val, float) and (val != val))
+            else "N/A"
+        )
         report_lines.append(f"  - {name}: {val_formatted}")
     report_lines.append("")
-    
+
     # Sensitivity & Robustness
     report_lines.append("## 5. MODEL RESILIENCE (ROBUSTNESS & SENSITIVITY)")
     report_lines.append("")
@@ -329,27 +306,43 @@ def generate_report(
     metric_drop = rob_res.metric_drop if rob_res.metric_drop is not None else 0.0
     report_lines.append(f"  - Metric Drop (Noise): {metric_drop:.4f}")
     if isinstance(rob_res.missing_feature_impact, dict):
-        missing_drop = rob_res.missing_feature_impact.get('metric_drop')
+        missing_drop = rob_res.missing_feature_impact.get("metric_drop")
         if missing_drop is not None:
             report_lines.append(f"  - Missing Feature Impact (Metric Drop): {missing_drop:.4f}")
         else:
             report_lines.append("  - Missing Feature Impact (Metric Drop): N/A")
     report_lines.append("")
-    
+
     # Fairness
     if fairness_payload:
         report_lines.append("## 6. FAIRNESS ANALYSIS")
         report_lines.append("")
-        dpd = fairness_payload.demographic_parity_diff if fairness_payload.demographic_parity_diff is not None else 0.0
-        di = fairness_payload.disparate_impact if fairness_payload.disparate_impact is not None else 0.0
-        eod = fairness_payload.equal_opportunity_diff if fairness_payload.equal_opportunity_diff is not None else 0.0
-        ped = fairness_payload.predictive_equality_diff if fairness_payload.predictive_equality_diff is not None else 0.0
+        dpd = (
+            fairness_payload.demographic_parity_diff
+            if fairness_payload.demographic_parity_diff is not None
+            else 0.0
+        )
+        di = (
+            fairness_payload.disparate_impact
+            if fairness_payload.disparate_impact is not None
+            else 0.0
+        )
+        eod = (
+            fairness_payload.equal_opportunity_diff
+            if fairness_payload.equal_opportunity_diff is not None
+            else 0.0
+        )
+        ped = (
+            fairness_payload.predictive_equality_diff
+            if fairness_payload.predictive_equality_diff is not None
+            else 0.0
+        )
         report_lines.append(f"  - Demographic Parity Difference: {dpd:.4f}")
         report_lines.append(f"  - Disparate Impact: {di:.4f}")
         report_lines.append(f"  - Equal Opportunity Difference: {eod:.4f}")
         report_lines.append(f"  - Predictive Equality Difference: {ped:.4f}")
         report_lines.append("")
-    
+
     # Risks
     if diagnosis_res.risks:
         report_lines.append("## 7. IDENTIFIED RISKS")
@@ -357,7 +350,7 @@ def generate_report(
         for risk in diagnosis_res.risks:
             report_lines.append(f"  - {risk}")
         report_lines.append("")
-    
+
     # Recommendations
     if diagnosis_res.recommendations:
         report_lines.append("## 8. RECOMMENDATIONS")
@@ -365,14 +358,16 @@ def generate_report(
         for rec in diagnosis_res.recommendations:
             report_lines.append(f"  - {rec}")
         report_lines.append("")
-    
+
     report_lines.append("## 9. CONCLUSION")
     report_lines.append("")
-    report_lines.append("This audit provides a detailed overview of the model's characteristics and performance. Addressing the identified risks and implementing the recommendations will enhance the model's reliability and fairness.")
+    report_lines.append(
+        "This audit provides a detailed overview of the model's characteristics and performance. Addressing the identified risks and implementing the recommendations will enhance the model's reliability and fairness."
+    )
     report_lines.append("")
     report_lines.append("=" * 80)
     report_lines.append("End of Report")
-    
+
     # Write to text file
     txt_content = "\n".join(report_lines)
     settings.reports_path.mkdir(parents=True, exist_ok=True)

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import contextlib
 import time
-from typing import Any, Optional
+from typing import Any
 
 import httpx
-from fastapi import Depends, HTTPException, Header, Request, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from jose import jwt
-from jose.exceptions import JWTError, ExpiredSignatureError
+from jose.exceptions import ExpiredSignatureError, JWTError
 
 from app.core.config import Settings, get_settings
 
@@ -27,7 +28,7 @@ class JWKSCache:
             self.keys = {k["kid"]: k for k in data.get("keys", [])}
             self.fetched_at = time.time()
 
-    def get_key(self, kid: str) -> Optional[dict[str, Any]]:
+    def get_key(self, kid: str) -> dict[str, Any] | None:
         return self.keys.get(kid)
 
 
@@ -57,13 +58,17 @@ async def get_current_user(
         header = jwt.get_unverified_header(token)
         kid = header.get("kid")
         alg = header.get("alg")
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token header")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token header"
+        ) from exc
 
     # HS256 tokens (Supabase default) use the project's JWT secret, not the anon token value.
     if alg == "HS256":
         if not settings.supabase_jwt_secret:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Auth not configured")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Auth not configured"
+            )
 
         try:
             claims = jwt.decode(
@@ -74,46 +79,65 @@ async def get_current_user(
                 options={"verify_aud": False, "verify_exp": True},
             )
         except ExpiredSignatureError:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
-        except (JWTError, Exception):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired"
+            ) from None
+        except (JWTError, Exception) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+            ) from exc
     else:
         # RS256 path via JWKS
         if not settings.supabase_jwks_url:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="JWKS URL not configured")
-        
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="JWKS URL not configured"
+            )
+
         if _jwks_cache.is_stale() or not _jwks_cache.get_key(kid):
             try:
                 await _jwks_cache.refresh(str(settings.supabase_jwks_url))
-            except Exception:
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Cannot fetch JWKS")
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Cannot fetch JWKS"
+                ) from exc
 
         key = _jwks_cache.get_key(kid)
         if not key:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
         try:
-            claims = jwt.decode(token, key, algorithms=["RS256"], audience=None, options={"verify_aud": False, "verify_exp": True})
+            claims = jwt.decode(
+                token,
+                key,
+                algorithms=["RS256"],
+                audience=None,
+                options={"verify_aud": False, "verify_exp": True},
+            )
         except ExpiredSignatureError:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
-        except (JWTError, Exception):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired"
+            ) from None
+        except (JWTError, Exception) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+            ) from exc
 
     expected_iss = _expected_issuer(settings)
     if expected_iss:
         iss = claims.get("iss")
         if iss != expected_iss:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token issuer")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token issuer"
+            )
 
     user_id = claims.get("sub")
     if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
+        )
 
     user_id_str = str(user_id)
     # Attach to request for rate limiting / logging
-    try:
+    with contextlib.suppress(Exception):
         request.state.user_id = user_id_str
-    except Exception:
-        pass
     return user_id_str
-

@@ -5,7 +5,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
@@ -27,14 +27,16 @@ class DiagnosisResult:
     artifact_path: Path
 
 
-def _save_artifact(base: Path, data: Dict[str, Any]) -> Path:
+def _save_artifact(base: Path, data: dict[str, Any]) -> Path:
     base.mkdir(parents=True, exist_ok=True)
     path = base / f"diagnosis_{uuid.uuid4().hex}.json"
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2))
     return path
 
 
-def _build_prompt(metrics: dict, xai: dict, sensitivity: dict, robustness: dict, fairness: dict | None):
+def _build_prompt(
+    metrics: dict, xai: dict, sensitivity: dict, robustness: dict, fairness: dict | None
+):
     return ChatPromptTemplate.from_template(
         """
 You are an ML audit assistant. Summarize technical findings with brevity and precision.
@@ -59,13 +61,12 @@ def diagnose(
     dataset: Dataset,
     model: ModelArtifact,
     settings: Settings,
-    sensitive_attribute: Optional[str] = None,
-    privileged_values: Optional[list[Any]] = None,
-    unprivileged_values: Optional[list[Any]] = None,
+    sensitive_attribute: str | None = None,
+    privileged_values: list[Any] | None = None,
+    unprivileged_values: list[Any] | None = None,
     positive_label: int | float | str = 1,
 ) -> DiagnosisResult:
     # Collect artefacts
-    start_ts = uuid.uuid4().hex  # just an id for logging timings
     exclude_cols = [sensitive_attribute] if sensitive_attribute else []
 
     metrics_res = evaluate_model(
@@ -217,4 +218,3 @@ def diagnose(
         recommendations=recs,
         artifact_path=artifact_path,
     )
-

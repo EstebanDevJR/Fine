@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Shader, ChromaFlow, Swirl } from 'shaders/react'
 import { MagneticButton } from '../landing/MagneticButton'
@@ -8,7 +8,7 @@ import { AboutSection } from '../landing/sections/AboutSection'
 import { ContactSection } from '../landing/sections/ContactSection'
 import { CustomCursor } from '../landing/CustomCursor'
 import { GrainOverlay } from '../landing/GrainOverlay'
-import { useAuth } from '../api/AuthProvider'
+import { useAuth } from '../api/useAuth'
 import { Logo } from '../components/Logo.tsx'
 
 function HeroSection({
@@ -295,21 +295,11 @@ export function LandingPage() {
     }
   }, [])
 
-  // Keyboard navigation (left/right arrows) for horizontal sections
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') scrollToSection(currentSection + 1)
-      if (e.key === 'ArrowLeft') scrollToSection(currentSection - 1)
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [currentSection])
-
   const goToUploadOrAuth = () => {
     navigate({ to: session ? '/upload' : '/auth' })
   }
 
-  const scrollToSection = (index: number, cancelPrevious = true) => {
+  const scrollToSection = useCallback((index: number, cancelPrevious = true) => {
     const container = scrollContainerRef.current
     if (!container) return
     
@@ -375,7 +365,17 @@ export function LandingPage() {
       scrollInProgressRef.current = false
       pendingScrollRef.current = null
     }, scrollDuration)
-  }
+  }, [sectionLabels.length])
+
+  // Keyboard navigation (left/right arrows) for horizontal sections
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') scrollToSection(currentSection + 1)
+      if (e.key === 'ArrowLeft') scrollToSection(currentSection - 1)
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [currentSection, scrollToSection])
 
   useEffect(() => {
     const handleTouchStart = (e: TouchEvent) => {

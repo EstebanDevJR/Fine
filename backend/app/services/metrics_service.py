@@ -5,7 +5,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -31,14 +31,14 @@ ProblemType = Literal["classification", "regression"]
 @dataclass
 class EvaluationResult:
     problem_type: ProblemType
-    metrics: Dict[str, Any]
+    metrics: dict[str, Any]
     n_samples: int
     n_features: int
-    n_classes: Optional[int]
+    n_classes: int | None
     artifact_path: Path
 
 
-def _detect_problem_type(y: pd.Series) -> tuple[ProblemType, Optional[int]]:
+def _detect_problem_type(y: pd.Series) -> tuple[ProblemType, int | None]:
     if pd.api.types.is_numeric_dtype(y):
         # Heuristic: if few unique values and int, treat as classification
         unique_vals = y.dropna().unique()
@@ -50,8 +50,8 @@ def _detect_problem_type(y: pd.Series) -> tuple[ProblemType, Optional[int]]:
     return "classification", n_classes
 
 
-def _classification_metrics(y_true: np.ndarray, y_pred: np.ndarray, y_proba=None) -> Dict[str, Any]:
-    metrics: Dict[str, Any] = {
+def _classification_metrics(y_true: np.ndarray, y_pred: np.ndarray, y_proba=None) -> dict[str, Any]:
+    metrics: dict[str, Any] = {
         "accuracy": float(accuracy_score(y_true, y_pred)),
         "f1_macro": float(f1_score(y_true, y_pred, average="macro")),
     }
@@ -72,7 +72,7 @@ def _classification_metrics(y_true: np.ndarray, y_pred: np.ndarray, y_proba=None
     return metrics
 
 
-def _regression_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, Any]:
+def _regression_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, Any]:
     rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
     return {
         "rmse": rmse,
@@ -81,7 +81,7 @@ def _regression_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, Any
     }
 
 
-def _save_artifact(base: Path, data: Dict[str, Any]) -> Path:
+def _save_artifact(base: Path, data: dict[str, Any]) -> Path:
     base.mkdir(parents=True, exist_ok=True)
     path = base / f"metrics_{uuid.uuid4().hex}.json"
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2))
@@ -92,7 +92,9 @@ def _compute_permutation(model, X: pd.DataFrame, y: pd.Series, problem_type: str
     scoring = "f1_macro" if problem_type == "classification" else "neg_mean_squared_error"
     result = permutation_importance(model, X, y, n_repeats=5, random_state=42, scoring=scoring)
     importance = []
-    for name, mean_imp, std_imp in zip(X.columns, result.importances_mean, result.importances_std):
+    for name, mean_imp, std_imp in zip(
+        X.columns, result.importances_mean, result.importances_std, strict=False
+    ):
         importance.append(
             {"feature": name, "importance_mean": float(mean_imp), "importance_std": float(std_imp)}
         )
@@ -121,7 +123,8 @@ def evaluate_model(
     exclude_columns: list[str] | None = None,
 ) -> EvaluationResult:
     import time
-    from app.core.metrics import observe_time, incr
+
+    from app.core.metrics import incr, observe_time
 
     start = time.perf_counter()
     df, y, X = load_dataset(dataset)

@@ -1,53 +1,38 @@
 from __future__ import annotations
 
 import json
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import numpy as np
 import pandas as pd
 import shap
-import time
 from fastapi import HTTPException, status
-from sklearn.inspection import permutation_importance
 
-from app.services.metrics_service import _compute_permutation, _align_features
-from app.core.metrics import observe_time, incr
-
+from app.core.metrics import incr, observe_time
 from app.db.models import Dataset, ModelArtifact
 from app.services.dataset_loader import load_dataset
-from app.services.metrics_service import _detect_problem_type
+from app.services.metrics_service import _align_features, _compute_permutation, _detect_problem_type
 from app.services.model_loader import load_model
 
 
 @dataclass
 class XAIResult:
     problem_type: str
-    permutation_importance: List[Dict[str, Any]]
-    shap_summary: Dict[str, Any]
+    permutation_importance: list[dict[str, Any]]
+    shap_summary: dict[str, Any]
     sample_size: int
     artifact_path: Path
 
 
-def _save_artifact(base: Path, data: Dict[str, Any]) -> Path:
+def _save_artifact(base: Path, data: dict[str, Any]) -> Path:
     base.mkdir(parents=True, exist_ok=True)
     path = base / f"xai_{uuid.uuid4().hex}.json"
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2))
     return path
-
-
-def _compute_permutation(model, X: pd.DataFrame, y: pd.Series, problem_type: str):
-    scoring = "f1_macro" if problem_type == "classification" else "neg_mean_squared_error"
-    result = permutation_importance(model, X, y, n_repeats=5, random_state=42, scoring=scoring)
-    importance = []
-    for name, mean_imp, std_imp in zip(X.columns, result.importances_mean, result.importances_std):
-        importance.append(
-            {"feature": name, "importance_mean": float(mean_imp), "importance_std": float(std_imp)}
-        )
-    importance.sort(key=lambda x: abs(x["importance_mean"]), reverse=True)
-    return importance
 
 
 def _compute_shap(model, X: pd.DataFrame):
@@ -57,7 +42,7 @@ def _compute_shap(model, X: pd.DataFrame):
     explainer = shap.Explainer(model, sample)
     shap_values = explainer(sample)
 
-    def _mean_abs(values: np.ndarray) -> List[float]:
+    def _mean_abs(values: np.ndarray) -> list[float]:
         return np.abs(values).mean(axis=0).tolist()
 
     if isinstance(shap_values.values, list):

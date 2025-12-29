@@ -1,21 +1,20 @@
 from __future__ import annotations
 
-import time
-from typing import Dict
-
 import re
-from prometheus_client import Counter as PromCounter
-from prometheus_client import Histogram, CollectorRegistry, generate_latest
+import time
 
-Counters = Dict[str, int]
-Timings = Dict[str, float]
+from prometheus_client import CollectorRegistry, Histogram, generate_latest
+from prometheus_client import Counter as PromCounter
+
+Counters = dict[str, int]
+Timings = dict[str, float]
 
 COUNTERS: Counters = {}
 TIMINGS_MS: Timings = {}
 
 REGISTRY = CollectorRegistry()
-PROM_COUNTERS: Dict[str, PromCounter] = {}
-PROM_HIST: Dict[str, Histogram] = {}
+PROM_COUNTERS: dict[str, PromCounter] = {}
+PROM_HIST: dict[str, Histogram] = {}
 
 
 def _sanitize_name(name: str) -> str:
@@ -67,4 +66,3 @@ def timed(metric: str):
 
 def render_prometheus() -> bytes:
     return generate_latest(REGISTRY)
-

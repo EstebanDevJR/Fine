@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict
-from typing import DefaultDict
 
 from fastapi import HTTPException, Request, status
 
@@ -11,8 +10,8 @@ class SimpleRateLimiter:
     def __init__(self, limit_per_minute: int, burst: int):
         self.limit_per_minute = limit_per_minute
         self.burst = burst
-        self.tokens: DefaultDict[str, float] = defaultdict(lambda: burst)
-        self.timestamp: DefaultDict[str, float] = defaultdict(time.time)
+        self.tokens: defaultdict[str, float] = defaultdict(lambda: burst)
+        self.timestamp: defaultdict[str, float] = defaultdict(time.time)
 
     def allow(self, key: str) -> bool:
         now = time.time()
@@ -41,10 +40,11 @@ async def rate_limit(request: Request):
     if limiter is None:
         return
     # Prefer authenticated user_id (set by auth dependency), fallback to client IP.
-    key = getattr(request.state, "user_id", None) or (request.client.host if request.client else "anonymous")
+    key = getattr(request.state, "user_id", None) or (
+        request.client.host if request.client else "anonymous"
+    )
     if not limiter.allow(key):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Rate limit exceeded",
         )
-

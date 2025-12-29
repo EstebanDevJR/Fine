@@ -1,9 +1,9 @@
 import { Link, useRouterState } from '@tanstack/react-router'
 import { MagneticButton } from '../landing/MagneticButton'
 import { Logo } from './Logo'
-import { useTheme } from './ThemeContext'
+import { useTheme } from './useTheme'
 import { Moon, Sun, RefreshCw, AlertCircle } from 'lucide-react'
-import { useAuth } from '../api/AuthProvider'
+import { useAuth } from '../api/useAuth'
 
 export function GlobalNav() {
   const router = useRouterState()

@@ -174,7 +174,8 @@ def build_audit_graph(settings: Settings | None = None):
     return graph.compile()
 
 
-async def run_audit_graph(payload: AuditGraphState, settings: Settings | None = None) -> AuditGraphState:
+async def run_audit_graph(
+    payload: AuditGraphState, settings: Settings | None = None
+) -> AuditGraphState:
     compiled = build_audit_graph(settings=settings)
     return await compiled.ainvoke(payload)
-

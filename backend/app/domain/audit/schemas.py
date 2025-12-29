@@ -1,11 +1,10 @@
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class DatasetCreate(BaseModel):
-    name: Optional[str] = None
+    name: str | None = None
     target_column: str = Field(..., min_length=1)
 
 
@@ -16,7 +15,7 @@ class DatasetResponse(BaseModel):
     name: str
     filename: str
     path: str
-    s3_uri: Optional[str] = None
+    s3_uri: str | None = None
     file_format: str
     size_bytes: int
     target_column: str
@@ -25,10 +24,10 @@ class DatasetResponse(BaseModel):
 
 
 class ModelCreate(BaseModel):
-    name: Optional[str] = None
+    name: str | None = None
     framework: str = Field(..., description="sklearn | xgboost | pytorch | onnx")
-    task_type: Optional[str] = Field(None, description="classification | regression | other")
-    description: Optional[str] = None
+    task_type: str | None = Field(None, description="classification | regression | other")
+    description: str | None = None
 
 
 class ModelResponse(BaseModel):
@@ -37,13 +36,13 @@ class ModelResponse(BaseModel):
     id: int
     name: str
     framework: str
-    task_type: Optional[str]
+    task_type: str | None
     filename: str
     path: str
-    s3_uri: Optional[str] = None
+    s3_uri: str | None = None
     size_bytes: int
     checksum: str
-    description: Optional[str]
+    description: str | None
     created_at: datetime
 
 
@@ -54,8 +53,7 @@ class AnalysisResponse(BaseModel):
     status: str
     dataset_id: int
     model_id: int
-    report_path: Optional[str] = None
-    pdf_path: Optional[str] = None
-    result: Optional[dict] = None
+    report_path: str | None = None
+    pdf_path: str | None = None
+    result: dict | None = None
     created_at: datetime
-
