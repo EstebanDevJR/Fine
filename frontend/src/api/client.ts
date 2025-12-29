@@ -1,6 +1,14 @@
 import { getAccessToken } from './supabaseClient'
 import type { z } from 'zod'
-import { AnalysisSchema, FullAuditStatusSchema, HealthSchema, MetricsSchema, ReadySchema } from './schemas'
+import {
+  AnalysisSchema,
+  DatasetSchema,
+  FullAuditStatusSchema,
+  HealthSchema,
+  MetricsSchema,
+  ModelSchema,
+  ReadySchema,
+} from './schemas'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1'
 
@@ -100,8 +108,8 @@ async function requestBlob(path: string, options: RequestInit = {}): Promise<Blo
 }
 
 export const api = {
-  listDatasets: () => request('/datasets'),
-  listModels: () => request('/models'),
+  listDatasets: () => requestZod('/datasets', DatasetSchema.array()),
+  listModels: () => requestZod('/models', ModelSchema.array()),
   presignDataset: (form: FormData) => requestForm('/upload/presign/dataset', form),
   confirmDataset: (form: FormData) => requestForm('/upload/dataset/confirm', form),
   presignModel: (form: FormData) => requestForm('/upload/presign/model', form),

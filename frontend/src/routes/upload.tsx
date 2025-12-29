@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { api } from '../api/client'
 import { useAuth } from '../api/useAuth'
+import type { Dataset, Model } from '../api/schemas'
 import { 
   Database, 
   Cpu, 
@@ -187,8 +188,8 @@ export function UploadPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['models'] }),
   })
 
-  const datasetList = (datasets.data as Asset[]) ?? []
-  const modelList = (models.data as Asset[]) ?? []
+  const datasetList = ((datasets.data as Dataset[] | undefined) ?? []) as DatasetAsset[]
+  const modelList = ((models.data as Model[] | undefined) ?? []) as ModelAsset[]
 
   if (authLoading || (!user && authLoading === false)) {
     return (
@@ -378,8 +379,8 @@ type UploadFormProps = {
   accept: string
   onSubmit: () => void
   isLoading: boolean
-  error: string | null
-  success: string | null
+  error: Error | null
+  success: boolean
   fields?: React.ReactNode
   progress?: number
   validationError?: string | null
@@ -403,6 +404,7 @@ function UploadForm({
   helper,
 }: UploadFormProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const safeProgress = progress ?? 0
   
   return (
     <div className="glass-card p-6 rounded-[2rem]">
@@ -473,14 +475,14 @@ function UploadForm({
           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="w-4 h-4" /> Store Asset</>}
         </button>
 
-        {progress > 0 && (
+        {safeProgress > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between text-[10px] font-mono text-[var(--text-muted)]">
               <span>Upload</span>
-              <span>{progress}%</span>
+              <span>{safeProgress}%</span>
             </div>
             <div className="h-2 w-full bg-[var(--card-border)] rounded-full overflow-hidden">
-              <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${progress}%` }} />
+              <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${safeProgress}%` }} />
             </div>
           </div>
         )}
@@ -557,33 +559,57 @@ function InventorySection({
             No assets detected
           </div>
         ) : (
-          (activeTab === 'datasets' ? datasets : models).map((item) => (
-            <div key={item.id} className="p-6 flex items-center justify-between hover:bg-[var(--text)]/5 transition-colors group">
-              <div className="flex items-center gap-5">
-                <div className="p-3 bg-[var(--bg)]/50 rounded-2xl border border-[var(--card-border)] group-hover:border-amber-500/30 transition-all">
-                  {activeTab === 'datasets' ? <Database className="w-5 h-5 text-emerald-500" /> : <Cpu className="w-5 h-5 text-blue-500" />}
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-[var(--text)] tracking-tight">{item.name}</h4>
-                  <div className="flex items-center gap-3 mt-1.5">
-                    <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest px-2 py-0.5 border border-[var(--card-border)] rounded-md">
-                      {activeTab === 'datasets' ? (item.file_format || 'CSV') : (item.framework || 'ARCH')}
-                    </span>
-                    <span className="text-[10px] text-[var(--text-muted)] font-medium italic">
-                      {activeTab === 'datasets' ? `target: ${item.target_column || 'none'}` : (item.task_type || 'classification')}
-                    </span>
+          <>
+            {activeTab === 'datasets'
+              ? datasets.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-6 flex items-center justify-between hover:bg-[var(--text)]/5 transition-colors group"
+                  >
+                    <div className="flex items-center gap-5">
+                      <div className="p-3 bg-[var(--bg)]/50 rounded-2xl border border-[var(--card-border)] group-hover:border-amber-500/30 transition-all">
+                        <Database className="w-5 h-5 text-emerald-500" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-[var(--text)] tracking-tight">{item.name}</h4>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest px-2 py-0.5 border border-[var(--card-border)] rounded-md">
+                            {item.file_format || 'CSV'}
+                          </span>
+                          <span className="text-[10px] text-[var(--text-muted)] font-medium italic">
+                            {`target: ${item.target_column || 'none'}`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <ConfirmDeleteButton onConfirm={() => onDeleteDataset(item.id)} label="Delete dataset" />
                   </div>
-                </div>
-              </div>
-              <ConfirmDeleteButton
-                onConfirm={() => {
-                  if (activeTab === 'datasets') onDeleteDataset?.(item.id)
-                  else onDeleteModel?.(item.id)
-                }}
-                label={activeTab === 'datasets' ? 'Delete dataset' : 'Delete model'}
-              />
-            </div>
-          ))
+                ))
+              : models.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-6 flex items-center justify-between hover:bg-[var(--text)]/5 transition-colors group"
+                  >
+                    <div className="flex items-center gap-5">
+                      <div className="p-3 bg-[var(--bg)]/50 rounded-2xl border border-[var(--card-border)] group-hover:border-amber-500/30 transition-all">
+                        <Cpu className="w-5 h-5 text-blue-500" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-[var(--text)] tracking-tight">{item.name}</h4>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest px-2 py-0.5 border border-[var(--card-border)] rounded-md">
+                            {item.framework || 'ARCH'}
+                          </span>
+                          <span className="text-[10px] text-[var(--text-muted)] font-medium italic">
+                            {item.task_type || 'classification'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <ConfirmDeleteButton onConfirm={() => onDeleteModel(item.id)} label="Delete model" />
+                  </div>
+                ))}
+          </>
         )}
       </div>
     </div>

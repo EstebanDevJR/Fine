@@ -17,9 +17,6 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
-type Asset = { id: number; name?: string; created_at?: string }
-type Analysis = { id: number; status: string; dataset_id: number; model_id: number; created_at: string }
-
 export function DashboardPage() {
   const { user, loading } = useAuth()
   const navigate = useNavigate()
@@ -28,9 +25,9 @@ export function DashboardPage() {
     if (!loading && !user) navigate({ to: '/auth' })
   }, [loading, user, navigate])
 
-  const datasets = useQuery<Asset[]>({ queryKey: ['datasets'], queryFn: api.listDatasets, enabled: Boolean(user) })
-  const models = useQuery<Asset[]>({ queryKey: ['models'], queryFn: api.listModels, enabled: Boolean(user) })
-  const analyses = useQuery<Analysis[]>({ queryKey: ['analyses'], queryFn: api.listAnalyses, enabled: Boolean(user) })
+  const datasets = useQuery({ queryKey: ['datasets'], queryFn: api.listDatasets, enabled: Boolean(user) })
+  const models = useQuery({ queryKey: ['models'], queryFn: api.listModels, enabled: Boolean(user) })
+  const analyses = useQuery({ queryKey: ['analyses'], queryFn: api.listAnalyses, enabled: Boolean(user) })
 
   const datasetCount = datasets.data?.length ?? 0
   const modelCount = models.data?.length ?? 0
@@ -263,7 +260,7 @@ function KpiBadge({
   value,
   tone,
 }: {
-  icon: JSX.Element
+  icon: React.ReactNode
   label: string
   value: React.ReactNode
   tone: 'emerald' | 'rose' | 'amber' | 'cyan'

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import ReactMarkdown from 'react-markdown'
@@ -27,6 +27,29 @@ import {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
+
+type EvaluateBlock = {
+  metrics?: Record<string, number | string>
+  n_samples?: number
+  n_features?: number
+  n_classes?: number
+  problem_type?: string
+}
+type SensitivityBlock = { label_flip_rate?: number; proba_shift_mean?: number }
+type RobustnessBlock = {
+  metric_drop?: number
+  missing_feature_impact?: { metric_drop?: number; top_features?: string[] }
+}
+type FairnessBlock = {
+  skipped?: boolean
+  reason?: string
+  demographic_parity_diff?: number
+  disparate_impact?: number
+  equal_opportunity_diff?: number
+  predictive_equality_diff?: number
+} & Record<string, unknown>
+type DiagnoseBlock = { summary?: string; risks?: string[]; recommendations?: string[] }
+type XaiBlock = Record<string, unknown>
 
 function getEvalMetrics(result: unknown): Record<string, unknown> | undefined {
   if (!isRecord(result)) return undefined
@@ -67,7 +90,6 @@ export function AnalysesPage() {
   const [selectedId, setSelectedId] = useState<number | null>(initialSelectedId)
   const [showRaw, setShowRaw] = useState(false)
   const qc = useQueryClient()
-  const didAutoSelectRef = useRef(false)
 
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: '/auth' })
@@ -77,20 +99,20 @@ export function AnalysesPage() {
     queryKey: ['analyses'],
     queryFn: api.listAnalyses,
     enabled: Boolean(user),
-    onSuccess: (data) => {
-      if (didAutoSelectRef.current) return
-      if (initialSelectedId !== null) return
-      if (!selectedId && data.length) {
-        didAutoSelectRef.current = true
-        setSelectedId(data[data.length - 1].id)
-      }
-    },
   })
 
+  const effectiveSelectedId = useMemo(() => {
+    if (selectedId) return selectedId
+    if (initialSelectedId) return initialSelectedId
+    const data = listQuery.data
+    if (!data || data.length === 0) return null
+    return data[data.length - 1].id
+  }, [initialSelectedId, listQuery.data, selectedId])
+
   const detailQuery = useQuery<ApiAnalysis>({
-    queryKey: ['analysis', selectedId],
-    queryFn: () => api.getAnalysis(selectedId as number),
-    enabled: Boolean(selectedId),
+    queryKey: ['analysis', effectiveSelectedId],
+    queryFn: () => api.getAnalysis(effectiveSelectedId as number),
+    enabled: Boolean(effectiveSelectedId),
   })
 
   const [pendingDelete, setPendingDelete] = useState<number | null>(null)
@@ -101,7 +123,7 @@ export function AnalysesPage() {
     },
     onSuccess: (_, id) => {
       qc.invalidateQueries({ queryKey: ['analyses'] })
-      if (selectedId === id) setSelectedId(null)
+      if (effectiveSelectedId === id) setSelectedId(null)
       setPendingDelete(null)
       // Redirect to dashboard after successful deletion
       navigate({ to: '/dashboard' })
@@ -427,7 +449,7 @@ function MetricCard({
   )
 }
 
-function InfoBadge({ label, value, icon }: { label: string; value: string; icon: JSX.Element }) {
+function InfoBadge({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
   return (
     <div className="p-4 rounded-2xl border border-[var(--card-border)] bg-[var(--bg)]/40 flex items-center gap-3">
       <div className="p-2 rounded-xl bg-[var(--bg)]/50 border border-[var(--card-border)]">{icon}</div>
@@ -454,12 +476,75 @@ function ResultPanels({
     )
   }
 
-  const evalRes = result.evaluate
-  const xai = result.xai
-  const sensitivity = result.sensitivity
-  const robustness = result.robustness
-  const fairness = result.fairness
-  const diagnose = result.diagnose
+  const evalRes: EvaluateBlock | null = (() => {
+    const raw = result['evaluate']
+    if (!isRecord(raw)) return null
+    const metricsRaw = raw['metrics']
+    const metrics: Record<string, number | string> | undefined = (() => {
+      if (!isRecord(metricsRaw)) return undefined
+      const out: Record<string, number | string> = {}
+      for (const [k, v] of Object.entries(metricsRaw)) {
+        if (typeof v === 'number' || typeof v === 'string') out[k] = v
+      }
+      return out
+    })()
+    return {
+      metrics,
+      n_samples: typeof raw['n_samples'] === 'number' ? raw['n_samples'] : undefined,
+      n_features: typeof raw['n_features'] === 'number' ? raw['n_features'] : undefined,
+      n_classes: typeof raw['n_classes'] === 'number' ? raw['n_classes'] : undefined,
+      problem_type: typeof raw['problem_type'] === 'string' ? raw['problem_type'] : undefined,
+    }
+  })()
+
+  const xai: XaiBlock | null = (() => {
+    const raw = result['xai']
+    return isRecord(raw) ? (raw as Record<string, unknown>) : null
+  })()
+
+  const sensitivity: SensitivityBlock | null = (() => {
+    const raw = result['sensitivity']
+    if (!isRecord(raw)) return null
+    return {
+      label_flip_rate: typeof raw['label_flip_rate'] === 'number' ? raw['label_flip_rate'] : undefined,
+      proba_shift_mean: typeof raw['proba_shift_mean'] === 'number' ? raw['proba_shift_mean'] : undefined,
+    }
+  })()
+
+  const robustness: RobustnessBlock | null = (() => {
+    const raw = result['robustness']
+    if (!isRecord(raw)) return null
+    const mfi = raw['missing_feature_impact']
+    const mfiRec = isRecord(mfi) ? (mfi as Record<string, unknown>) : null
+    return {
+      metric_drop: typeof raw['metric_drop'] === 'number' ? raw['metric_drop'] : undefined,
+      missing_feature_impact: mfiRec
+        ? {
+            metric_drop: typeof mfiRec['metric_drop'] === 'number' ? (mfiRec['metric_drop'] as number) : undefined,
+            top_features: Array.isArray(mfiRec['top_features'])
+              ? (mfiRec['top_features'] as unknown[]).filter((x): x is string => typeof x === 'string')
+              : undefined,
+          }
+        : undefined,
+    }
+  })()
+
+  const fairness: FairnessBlock | null = (() => {
+    const raw = result['fairness']
+    return isRecord(raw) ? (raw as FairnessBlock) : null
+  })()
+
+  const diagnose: DiagnoseBlock | null = (() => {
+    const raw = result['diagnose']
+    if (!isRecord(raw)) return null
+    return {
+      summary: typeof raw['summary'] === 'string' ? raw['summary'] : undefined,
+      risks: Array.isArray(raw['risks']) ? (raw['risks'] as unknown[]).filter((x): x is string => typeof x === 'string') : undefined,
+      recommendations: Array.isArray(raw['recommendations'])
+        ? (raw['recommendations'] as unknown[]).filter((x): x is string => typeof x === 'string')
+        : undefined,
+    }
+  })()
 
   return (
     <div className="space-y-4">
@@ -486,7 +571,6 @@ function ResultPanels({
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Permutation importance</p>
             <div className="space-y-2">
               {(() => {
-                if (!isRecord(xai)) return null
                 const pi = xai['permutation_importance']
                 if (!Array.isArray(pi)) return null
                 return (pi as Array<unknown>)
@@ -500,7 +584,7 @@ function ResultPanels({
               })()}
             </div>
           </div>
-          {isRecord(xai) && isRecord(xai['shap_summary']) && Array.isArray((xai['shap_summary'] as Record<string, unknown>)['feature_names']) && (
+          {isRecord(xai['shap_summary']) && Array.isArray((xai['shap_summary'] as Record<string, unknown>)['feature_names']) && (
             <div className="pt-3">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-2">SHAP mean |abs|</p>
               <div className="space-y-2">
@@ -587,7 +671,7 @@ function ResultPanels({
   )
 }
 
-function Section({ title, icon, children }: { title: string; icon: JSX.Element; children: React.ReactNode }) {
+function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl bg-[var(--bg)]/40 border border-[var(--card-border)] p-4 space-y-3">
       <div className="flex items-center gap-2">
@@ -617,12 +701,12 @@ function MetricBar({ label, value, colorClass = 'bg-emerald-500/70' }: { label: 
 function Pill({ label, value }: { label: string; value: unknown }) {
   return (
     <span className="px-2 py-1 rounded-lg border border-[var(--card-border)] bg-[var(--bg)]/40 text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)]">
-      {label}: {value}
+      {label}: {value === null || value === undefined ? '—' : String(value)}
     </span>
   )
 }
 
-function KeyMetrics({ metrics }: { metrics?: Record<string, number> }) {
+function KeyMetrics({ metrics }: { metrics?: Record<string, unknown> }) {
   if (!metrics || Object.keys(metrics).length === 0) return null
   const entries = Object.entries(metrics).slice(0, 4)
   return (
@@ -632,7 +716,9 @@ function KeyMetrics({ metrics }: { metrics?: Record<string, number> }) {
         {entries.map(([k, v]) => (
           <div key={k} className="p-3 rounded-xl border border-[var(--card-border)] bg-[var(--bg)]/60">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">{k}</p>
-            <p className="text-sm font-bold text-[var(--text)]">{Number.isFinite(v) ? v.toFixed(3) : String(v)}</p>
+            <p className="text-sm font-bold text-[var(--text)]">
+              {Number.isFinite(Number(v)) ? Number(v).toFixed(3) : String(v)}
+            </p>
           </div>
         ))}
       </div>
@@ -743,12 +829,12 @@ function ReportViewer({
   diagnose,
 }: {
   result?: Record<string, unknown> | null
-  evalRes?: unknown
-  xai?: unknown
-  sensitivity?: unknown
-  robustness?: unknown
-  fairness?: unknown
-  diagnose?: unknown
+  evalRes?: EvaluateBlock | null
+  xai?: XaiBlock | null
+  sensitivity?: SensitivityBlock | null
+  robustness?: RobustnessBlock | null
+  fairness?: FairnessBlock | null
+  diagnose?: DiagnoseBlock | null
 }) {
   const formatValue = (v: unknown): string => {
     if (v === null || v === undefined || Number.isNaN(Number(v))) return 'N/A'

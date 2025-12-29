@@ -18,6 +18,35 @@ export const MetricsSchema = z.object({
 })
 export type Metrics = z.infer<typeof MetricsSchema>
 
+export const DatasetSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  filename: z.string(),
+  path: z.string(),
+  s3_uri: z.string().nullable().optional(),
+  file_format: z.string(),
+  size_bytes: z.number().int(),
+  target_column: z.string(),
+  checksum: z.string(),
+  created_at: z.string(),
+})
+export type Dataset = z.infer<typeof DatasetSchema>
+
+export const ModelSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  framework: z.string(),
+  task_type: z.string().nullable().optional(),
+  filename: z.string(),
+  path: z.string(),
+  s3_uri: z.string().nullable().optional(),
+  size_bytes: z.number().int(),
+  checksum: z.string(),
+  description: z.string().nullable().optional(),
+  created_at: z.string(),
+})
+export type Model = z.infer<typeof ModelSchema>
+
 export const AnalysisSchema = z.object({
   id: z.number().int(),
   status: z.string(),

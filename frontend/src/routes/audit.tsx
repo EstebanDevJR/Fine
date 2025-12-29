@@ -48,6 +48,7 @@ interface AuditStatus {
   status?: string
   progress?: number
   detail?: string
+  analysis_id?: number | null
   trace_id?: string
   trace_url?: string
   result?: {
