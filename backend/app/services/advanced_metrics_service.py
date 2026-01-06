@@ -46,11 +46,7 @@ def _compute_calibration(
         return None, None
 
     # For binary classification, use positive class probabilities
-    if y_proba.shape[1] == 2:
-        proba_pos = y_proba[:, 1]
-    else:
-        # Multi-class: use max probability
-        proba_pos = np.max(y_proba, axis=1)
+    proba_pos = y_proba[:, 1] if y_proba.shape[1] == 2 else np.max(y_proba, axis=1)
 
     try:
         fraction_of_positives, mean_predicted_value = calibration_curve(

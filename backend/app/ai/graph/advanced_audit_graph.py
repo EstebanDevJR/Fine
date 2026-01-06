@@ -6,7 +6,7 @@ from typing import Any, TypedDict
 
 import numpy as np
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import END, StateGraph, START
+from langgraph.graph import END, StateGraph
 
 from app.ai.agents.fairness_agent import FairnessAgent
 from app.ai.agents.metrics_agent import MetricsAgent
@@ -257,7 +257,7 @@ def build_advanced_audit_graph(
         }
 
         confidences = []
-        for agent_name, insights in agent_insights.items():
+        for _agent_name, insights in agent_insights.items():
             if isinstance(insights, dict):
                 synthesis["combined_findings"].extend(insights.get("findings", []))
                 synthesis["combined_recommendations"].extend(insights.get("recommendations", []))

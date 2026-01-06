@@ -491,7 +491,6 @@ async def analysis_qa(
 
     try:
         from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-        from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
         from langchain_openai import ChatOpenAI
     except Exception as exc:  # pragma: no cover
         raise HTTPException(
