@@ -6,7 +6,6 @@ import { PipelineSection } from '../landing/sections/PipelineSection'
 import { FeaturesSection } from '../landing/sections/FeaturesSection'
 import { AboutSection } from '../landing/sections/AboutSection'
 import { ContactSection } from '../landing/sections/ContactSection'
-import { CustomCursor } from '../landing/CustomCursor'
 import { GrainOverlay } from '../landing/GrainOverlay'
 import { useAuth } from '../api/useAuth'
 import { Logo } from '../components/Logo.tsx'
@@ -50,7 +49,7 @@ function HeroSection({
             { title: 'Automated', desc: 'Full pipeline, no manual steps.' },
             { title: 'Explainable', desc: 'XAI + fairness insights.' },
             { title: 'Observable', desc: 'Traced with Langfuse.' },
-          ].map((item, i) => (
+          ].map((item) => (
             <div key={item.title} className="rounded-2xl border-2 border-white/15 bg-white/8 p-5 backdrop-blur-xl hover:border-white/25 hover:bg-white/12 transition-all duration-200 hover:-translate-y-1 shadow-lg">
               <p className="text-xs font-bold uppercase tracking-[0.1em] text-white/90 mb-2">{item.title}</p>
               <p className="text-sm text-white/90 font-medium">{item.desc}</p>
@@ -414,7 +413,7 @@ export function LandingPage() {
         c.removeEventListener('touchend', handleTouchEnd)
       }
     }
-  }, [currentSection])
+  }, [currentSection, scrollToSection])
 
   useEffect(() => {
     let lastWheelTime = 0
@@ -508,7 +507,7 @@ export function LandingPage() {
       if (c) c.removeEventListener('wheel', handleWheel)
       clearTimeout(wheelTimeout)
     }
-  }, [])
+  }, [scrollToSection, sectionLabels.length])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -554,11 +553,10 @@ export function LandingPage() {
       if (c) c.removeEventListener('scroll', handleScroll)
       if (scrollThrottleRef.current) cancelAnimationFrame(scrollThrottleRef.current)
     }
-  }, [currentSection])
+  }, [currentSection, sectionLabels.length])
 
   return (
     <main className="relative h-screen w-full overflow-hidden bg-[#0A0F1E]" style={{ overscrollBehavior: 'none' }}>
-      {/* <CustomCursor /> */}
       <GrainOverlay />
 
       <div

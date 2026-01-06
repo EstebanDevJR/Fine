@@ -294,7 +294,7 @@ function SparkBars({ data }: { data: { day: string; value: number }[] }) {
   const max = Math.max(...data.map((d) => d.value), 1)
   return (
     <div className="flex items-end gap-1.5 h-12">
-      {data.map((d, i) => (
+      {data.map((d) => (
         <div
           key={d.day}
           title={`${d.day}: ${d.value}`}
