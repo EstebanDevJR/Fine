@@ -153,7 +153,9 @@ def evaluate_advanced_metrics(
     calibration_error = None
     brier_score = None
     if problem_type == "classification" and y_proba is not None:
-        y_true_binary = np.array([1 if v == np.unique(y)[1] else 0 for v in y]) if len(np.unique(y)) == 2 else y
+        y_true_binary = (
+            np.array([1 if v == np.unique(y)[1] else 0 for v in y]) if len(np.unique(y)) == 2 else y
+        )
         calibration_error, brier_score = _compute_calibration(y_true_binary, y_proba)
 
     confidence_intervals = _compute_confidence_intervals(np.array(y), np.array(y_pred), y_proba)
@@ -179,4 +181,3 @@ def evaluate_advanced_metrics(
         adversarial_robustness=adversarial_robustness,
         artifact_path=artifact_path,
     )
-

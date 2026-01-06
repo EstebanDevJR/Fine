@@ -49,4 +49,3 @@ Provide:
 5. Whether additional fairness analysis is needed (e.g., intersectional analysis)"""
 
         return self._invoke_llm(user_prompt)
-

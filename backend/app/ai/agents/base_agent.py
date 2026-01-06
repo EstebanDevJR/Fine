@@ -47,10 +47,7 @@ class BaseAgent(ABC):
         """Invoke LLM with structured output parsing."""
         messages = [
             SystemMessage(content=self.system_prompt),
-            HumanMessage(
-                content=f"{user_prompt}\n\n{self.parser.get_format_instructions()}"
-            ),
+            HumanMessage(content=f"{user_prompt}\n\n{self.parser.get_format_instructions()}"),
         ]
         response = self.llm.invoke(messages)
         return self.parser.parse(response.content)
-

@@ -66,11 +66,12 @@ Provide:
             feat_names = shap_summary.get("feature_names", [])
             values = shap_summary.get("global_mean_abs", [])
             if feat_names and values:
-                top_indices = sorted(range(len(values)), key=lambda i: abs(values[i]), reverse=True)[:10]
+                top_indices = sorted(
+                    range(len(values)), key=lambda i: abs(values[i]), reverse=True
+                )[:10]
                 lines.append("Top features by SHAP importance:")
                 for idx in top_indices:
                     lines.append(f"- {feat_names[idx]}: {values[idx]:.4f}")
         if "per_class" in shap_summary:
             lines.append("\nPer-class SHAP values available")
         return "\n".join(lines) if lines else "SHAP data structure unclear"
-

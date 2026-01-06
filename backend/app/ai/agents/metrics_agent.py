@@ -55,10 +55,17 @@ Provide:
         if problem_type == "classification":
             for key in ["accuracy", "f1_macro", "precision", "recall", "roc_auc", "pr_auc"]:
                 if key in metrics and metrics[key] is not None:
-                    lines.append(f"- {key}: {metrics[key]:.4f}" if isinstance(metrics[key], int | float) else f"- {key}: {metrics[key]}")
+                    lines.append(
+                        f"- {key}: {metrics[key]:.4f}"
+                        if isinstance(metrics[key], int | float)
+                        else f"- {key}: {metrics[key]}"
+                    )
         else:
             for key in ["rmse", "mae", "r2"]:
                 if key in metrics and metrics[key] is not None:
-                    lines.append(f"- {key}: {metrics[key]:.4f}" if isinstance(metrics[key], int | float) else f"- {key}: {metrics[key]}")
+                    lines.append(
+                        f"- {key}: {metrics[key]:.4f}"
+                        if isinstance(metrics[key], int | float)
+                        else f"- {key}: {metrics[key]}"
+                    )
         return "\n".join(lines) if lines else "No metrics available"
-

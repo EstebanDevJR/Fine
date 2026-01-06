@@ -132,7 +132,9 @@ def build_advanced_audit_graph(
             return state
 
         dataset, model = state["dataset"], state["model"]
-        exclude_cols = [state.get("sensitive_attribute")] if state.get("sensitive_attribute") else []
+        exclude_cols = (
+            [state.get("sensitive_attribute")] if state.get("sensitive_attribute") else []
+        )
         res = evaluate_advanced_metrics(
             dataset, model, settings.artifacts_path, exclude_columns=exclude_cols or None
         )
@@ -149,8 +151,12 @@ def build_advanced_audit_graph(
     def run_xai(state: AdvancedAuditGraphState) -> AdvancedAuditGraphState:
         """Run explainability analysis."""
         dataset, model = state["dataset"], state["model"]
-        exclude_cols = [state.get("sensitive_attribute")] if state.get("sensitive_attribute") else []
-        res = explain_model(dataset, model, settings.artifacts_path, exclude_columns=exclude_cols or None)
+        exclude_cols = (
+            [state.get("sensitive_attribute")] if state.get("sensitive_attribute") else []
+        )
+        res = explain_model(
+            dataset, model, settings.artifacts_path, exclude_columns=exclude_cols or None
+        )
         results = state.get("results", {})
         results["xai"] = {
             "permutation_importance": res.permutation_importance,
@@ -177,11 +183,17 @@ def build_advanced_audit_graph(
     def run_stress(state: AdvancedAuditGraphState) -> AdvancedAuditGraphState:
         """Run stress testing (sensitivity + robustness) in parallel conceptually."""
         dataset, model = state["dataset"], state["model"]
-        exclude_cols = [state.get("sensitive_attribute")] if state.get("sensitive_attribute") else []
+        exclude_cols = (
+            [state.get("sensitive_attribute")] if state.get("sensitive_attribute") else []
+        )
 
         # Run both analyses
-        sens_res = sensitivity_analysis(dataset, model, settings.artifacts_path, exclude_columns=exclude_cols or None)
-        rob_res = robustness_analysis(dataset, model, settings.artifacts_path, exclude_columns=exclude_cols or None)
+        sens_res = sensitivity_analysis(
+            dataset, model, settings.artifacts_path, exclude_columns=exclude_cols or None
+        )
+        rob_res = robustness_analysis(
+            dataset, model, settings.artifacts_path, exclude_columns=exclude_cols or None
+        )
 
         results = state.get("results", {})
         results["sensitivity"] = {
@@ -302,7 +314,9 @@ def build_advanced_audit_graph(
     # Define edges
     graph.set_entry_point("load")
     graph.add_edge("load", "metrics")
-    graph.add_conditional_edges("metrics", should_run_advanced_route, {"advanced_metrics": "advanced_metrics", "xai": "xai"})
+    graph.add_conditional_edges(
+        "metrics", should_run_advanced_route, {"advanced_metrics": "advanced_metrics", "xai": "xai"}
+    )
     graph.add_edge("advanced_metrics", "xai")
     graph.add_edge("xai", "stress")
     graph.add_edge("stress", "fairness")
@@ -317,7 +331,9 @@ def build_advanced_audit_graph(
 
 
 async def run_advanced_audit_graph(
-    payload: AdvancedAuditGraphState, settings: Settings | None = None, enable_checkpoints: bool = True
+    payload: AdvancedAuditGraphState,
+    settings: Settings | None = None,
+    enable_checkpoints: bool = True,
 ) -> AdvancedAuditGraphState:
     """Run the advanced audit graph."""
     settings = settings or get_settings()
@@ -326,6 +342,7 @@ async def run_advanced_audit_graph(
         name="advanced_audit_graph",
         input={"dataset_id": payload.get("dataset_id"), "model_id": payload.get("model_id")},
     )
-    compiled = build_advanced_audit_graph(settings=settings, trace=trace, enable_checkpoints=enable_checkpoints)
+    compiled = build_advanced_audit_graph(
+        settings=settings, trace=trace, enable_checkpoints=enable_checkpoints
+    )
     return await compiled.ainvoke(payload)
-

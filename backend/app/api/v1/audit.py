@@ -507,7 +507,7 @@ async def analysis_qa(
 
     # Build conversation history from payload
     messages = []
-    
+
     # System message with context
     system_content = f"""You are an ML audit assistant for the Fine app. Stay on-topic: only answer about audit results,
 dashboards, uploads, analyses, and this web app. Refuse unrelated requests politely.
@@ -524,9 +524,9 @@ Available analysis context:
 - Robustness: {robustness}
 - Sensitivity: {sensitivity}
 - XAI: {xai}"""
-    
+
     messages.append(SystemMessage(content=system_content))
-    
+
     # Add conversation history if provided
     if payload.conversation_history:
         for msg in payload.conversation_history:
@@ -534,7 +534,7 @@ Available analysis context:
                 messages.append(HumanMessage(content=msg.content))
             elif msg.role == "assistant":
                 messages.append(AIMessage(content=msg.content))
-    
+
     # Add current question
     messages.append(HumanMessage(content=payload.question.strip()))
 
