@@ -1,10 +1,10 @@
 import { useReveal } from '../useReveal'
 
 const FEATURES = [
-  { title: 'Ingestion & storage', description: 'Upload datasets/models with checksums, local artifacts, SQLite metadata.', direction: 'top' },
-  { title: 'Observability', description: 'Request IDs, in-memory + Prometheus metrics, readiness probes, rate limit.', direction: 'right' },
-  { title: 'Explainability', description: 'Permutation importance and SHAP for global insights with sampling controls.', direction: 'left' },
-  { title: 'Reporting', description: 'HTML/PDF via Jinja2 + WeasyPrint with artifacts, diagnosis, and recommendations.', direction: 'bottom' },
+  { title: 'Ingestion & storage', description: 'Upload datasets/models with checksums, local artifacts, SQLite metadata.'},
+  { title: 'Observability', description: 'Request IDs, in-memory + Prometheus metrics, readiness probes, rate limit.'},
+  { title: 'Explainability', description: 'Permutation importance and SHAP for global insights with sampling controls.'},
+  { title: 'Reporting', description: 'Json/txt via Jinja2 + WeasyPrint with artifacts, diagnosis, and recommendations.'},
 ]
 
 export function FeaturesSection() {

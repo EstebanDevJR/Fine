@@ -38,12 +38,18 @@ export function AnalysisChatWidget() {
 
   const chatMutation = useMutation({
     mutationFn: async (question: string) => {
-      if (!activeAnalysisId) throw new Error('Selecciona un análisis')
+      if (!activeAnalysisId) throw new Error('Select an analysis')
+      // Send conversation history (current messages state, which doesn't include the new question yet)
+      const history = messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }))
       return api.analysisQA({
         analysis_id: activeAnalysisId,
         question,
         page: router.location.pathname,
         page_context: 'Floating chat widget',
+        conversation_history: history.length > 0 ? history : undefined,
       }) as Promise<{ answer: string }>
     },
     onSuccess: (res) => {
@@ -54,8 +60,10 @@ export function AnalysisChatWidget() {
   const handleSend = (text?: string) => {
     const q = (text ?? input).trim()
     if (!q) return
+    // Add user message to state first (optimistic update)
     setMessages((msgs) => [...msgs, { role: 'user', content: q }])
     setInput('')
+    // Then send to API (history will be the previous messages, not including this new one)
     chatMutation.mutate(q)
   }
 
@@ -65,15 +73,17 @@ export function AnalysisChatWidget() {
     <>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="fixed bottom-6 right-6 z-40 rounded-full bg-[var(--text)] text-[var(--bg)] shadow-2xl w-14 h-14 flex items-center justify-center hover:scale-105 transition-transform"
+        className="fixed bottom-6 right-6 z-40 rounded-full bg-[var(--text)] text-[var(--bg)] shadow-2xl shadow-[var(--text)]/30 w-14 h-14 flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-200 min-w-[56px] min-h-[56px] ripple"
         title="AI chat about analyses"
+        aria-label="Toggle AI chat"
+        aria-expanded={open}
       >
         {open ? <X className="w-5 h-5" /> : <MessageCircle className="w-6 h-6" />}
       </button>
 
       {open && (
-        <div className="fixed bottom-24 right-6 z-40 w-full max-w-md glass-card border border-[var(--card-border)] rounded-3xl overflow-hidden shadow-2xl">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--card-border)] bg-[var(--bg)]/60">
+        <div className="fixed bottom-24 right-6 z-40 w-full max-w-md glass-card border-2 border-[var(--card-border)] rounded-3xl overflow-hidden shadow-2xl animate-fade-in">
+          <div className="flex items-center justify-between px-4 py-3 border-b-2 border-[var(--card-border)] bg-[var(--bg)]/70 backdrop-blur-xl">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-500" />
               <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text)]">AI Assistant</p>
@@ -81,7 +91,8 @@ export function AnalysisChatWidget() {
             <select
               value={activeAnalysisId ?? ''}
               onChange={(e) => setAnalysisId(e.target.value ? Number(e.target.value) : null)}
-              className="text-[11px] rounded-xl border border-[var(--card-border)] bg-[var(--bg)]/60 px-3 py-1 text-[var(--text)] outline-none"
+              className="text-[11px] rounded-xl border-2 border-[var(--card-border)] bg-[var(--bg)]/60 px-3 py-1.5 text-[var(--text)] outline-none focus:border-emerald-500/50 transition-all"
+              aria-label="Select analysis"
             >
               <option value="">Select analysis</option>
               {(listQuery.data || []).map((a) => (
@@ -130,7 +141,7 @@ export function AnalysisChatWidget() {
               {chatMutation.isPending && (
                 <div className="flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Pensando...
+                  Thinking...
                 </div>
               )}
               {chatMutation.error && (
@@ -150,12 +161,14 @@ export function AnalysisChatWidget() {
                 }
               }}
               placeholder="Ask the AI about your analyses..."
-              className="flex-1 rounded-xl border border-[var(--card-border)] bg-[var(--bg)]/50 px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-emerald-500/50"
+              className="flex-1 rounded-xl border-2 border-[var(--card-border)] bg-[var(--bg)]/50 px-3 py-2.5 text-sm text-[var(--text)] outline-none focus:border-emerald-500/70 focus:bg-[var(--bg)]/70 focus:shadow-md focus:shadow-emerald-500/20 transition-all placeholder:text-[var(--muted)] placeholder:opacity-50"
+              aria-label="Chat input"
             />
             <button
               onClick={() => handleSend()}
               disabled={!activeAnalysisId || chatMutation.isPending}
-              className="px-4 py-2 rounded-xl bg-[var(--text)] text-[var(--bg)] text-[10px] font-black uppercase tracking-[0.2em] hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+              className="px-4 py-2.5 rounded-xl bg-[var(--text)] text-[var(--bg)] text-[10px] font-black uppercase tracking-[0.15em] hover:opacity-90 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-h-[44px] transition-all shadow-md"
+              aria-label="Send message"
             >
               <Send className="w-4 h-4" />
               Send

@@ -29,7 +29,7 @@ const STEPS = [
   { key: 'robustness', title: 'Robustness', description: 'Strong noise and feature masking', icon: ShieldCheck },
   { key: 'fairness', title: 'Fairness', description: 'Parity gaps & impact analysis', icon: AlertTriangle },
   { key: 'diagnose', title: 'LLM Diagnose', description: 'Risks and recommendations', icon: Cpu },
-  { key: 'report', title: 'Report', description: 'HTML/PDF generation', icon: FileText },
+  { key: 'report', title: 'Report', description: 'Json/txt generation', icon: FileText },
 ]
 
 interface Dataset {
@@ -100,7 +100,7 @@ export function AuditPage() {
   const startAudit = useMutation<{ job_id: string }, Error, void>({
     mutationFn: () => {
       if (!activeDatasetId || !activeModelId) {
-        setFormError('Selecciona un dataset y un modelo')
+        setFormError('Select a dataset and a model')
         throw new Error('Dataset and model are required')
       }
       setFormError(null)
@@ -257,9 +257,10 @@ export function AuditPage() {
               <div className="space-y-3">
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Target Dataset</label>
                 <select
-                  className="w-full rounded-2xl border border-[var(--card-border)] bg-[var(--bg)]/50 px-5 py-4 text-sm text-[var(--text)] outline-none focus:border-emerald-500/50 transition-all appearance-none cursor-pointer"
+                  className="input-enhanced w-full px-5 py-4 text-sm appearance-none cursor-pointer bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22currentColor%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpolyline points=%226 9 12 15 18 9%22%3E%3C/polyline%3E%3C/svg%3E')] bg-[length:20px] bg-[right_16px_center] bg-no-repeat pr-10"
                   value={activeDatasetId ?? ''}
                   onChange={(e) => setManualDatasetId(e.target.value ? Number(e.target.value) : null)}
+                  aria-label="Select dataset"
                 >
                   <option value="">Select dataset</option>
                   {(datasets.data as Dataset[] || []).map((d) => (
@@ -271,9 +272,10 @@ export function AuditPage() {
               <div className="space-y-3">
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Target Model</label>
                 <select
-                  className="w-full rounded-2xl border border-[var(--card-border)] bg-[var(--bg)]/50 px-5 py-4 text-sm text-[var(--text)] outline-none focus:border-blue-500/50 transition-all appearance-none cursor-pointer"
+                  className="input-enhanced w-full px-5 py-4 text-sm appearance-none cursor-pointer bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22currentColor%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpolyline points=%226 9 12 15 18 9%22%3E%3C/polyline%3E%3C/svg%3E')] bg-[length:20px] bg-[right_16px_center] bg-no-repeat pr-10"
                   value={activeModelId ?? ''}
                   onChange={(e) => setManualModelId(e.target.value ? Number(e.target.value) : null)}
+                  aria-label="Select model"
                 >
                   <option value="">Select model</option>
                   {(models.data as Model[] || []).map((m) => (
@@ -291,25 +293,25 @@ export function AuditPage() {
                 }}
                 className="px-4 py-2 rounded-xl border border-[var(--card-border)] hover:bg-[var(--text)] hover:text-[var(--bg)] transition-all"
               >
-                Usar últimos assets
+                Use latest assets
               </button>
               <Link
                 to="/upload"
                 className="px-4 py-2 rounded-xl border border-[var(--card-border)] hover:bg-[var(--text)] hover:text-[var(--bg)] transition-all"
               >
-                Subir nuevos
+                Upload new ones
               </Link>
               {formError && <span className="text-rose-500">{formError}</span>}
             </div>
 
             {nothingToRun && (
               <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/5 text-[11px] text-amber-600 flex items-center justify-between">
-                <span>Sube al menos un dataset y un modelo para lanzar la auditoría.</span>
+                <span>Upload at least one dataset and one model to launch the audit.</span>
                 <Link
                   to="/upload"
                   className="px-3 py-1 rounded-lg bg-[var(--text)] text-[var(--bg)] text-[10px] font-black uppercase tracking-[0.2em] hover:opacity-90"
                 >
-                  Ir a Upload
+                  Go to Upload
                 </Link>
               </div>
             )}
@@ -318,12 +320,23 @@ export function AuditPage() {
               <button
                 disabled={startAudit.isPending || nothingToRun || (jobId !== null && statusData?.state !== 'SUCCESS' && statusData?.state !== 'FAILURE')}
                 onClick={() => startAudit.mutate()}
-                className={`w-full sm:w-auto px-10 py-4 rounded-xl font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 ${
-                  startAudit.isPending || nothingToRun ? 'bg-[var(--card-border)] text-[var(--text-muted)]' : 'bg-[var(--text)] text-[var(--bg)] hover:scale-[1.02] shadow-xl'
+                className={`w-full sm:w-auto px-10 py-4 rounded-xl font-black text-xs uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-3 min-h-[48px] ripple ${
+                  startAudit.isPending || nothingToRun 
+                    ? 'bg-[var(--card-border)] text-[var(--muted)] cursor-not-allowed opacity-60' 
+                    : 'bg-[var(--text)] text-[var(--bg)] hover:scale-[1.05] active:scale-[0.98] shadow-xl shadow-[var(--text)]/20 hover:shadow-2xl'
                 }`}
               >
-                {startAudit.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
-                Launch Full Audit
+                {startAudit.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Launching...</span>
+                  </>
+                ) : (
+                  <>
+                    <PlayCircle className="h-4 w-4" />
+                    <span>Launch Full Audit</span>
+                  </>
+                )}
               </button>
               
               {startAudit.isError && (
@@ -355,7 +368,7 @@ export function AuditPage() {
                   <button
                     onClick={() => navigator.clipboard.writeText(jobId)}
                     className="px-2 py-1 rounded-lg border border-[var(--card-border)] hover:bg-[var(--text)]/5 flex items-center gap-1 text-[var(--text-muted)]"
-                    title="Copiar Job ID"
+                    title="Copy Job ID"
                   >
                     <Copy className="w-3 h-3" />
                     Copy
@@ -368,12 +381,12 @@ export function AuditPage() {
                       setLastUpdate(new Date().toLocaleTimeString())
                     }}
                     className="px-2 py-1 rounded-lg border border-[var(--card-border)] hover:bg-[var(--text)]/5 flex items-center gap-1 text-[var(--text-muted)]"
-                    title="Refrescar estado"
+                    title="Refresh status"
                   >
                     <RefreshCw className="w-3 h-3" />
                     Refresh
                   </button>
-                  {lastUpdate && <span className="ml-auto">Última actualización: {lastUpdate}</span>}
+                  {lastUpdate && <span className="ml-auto">Last update: {lastUpdate}</span>}
                 </div>
                 {(traceUrl || traceId) && (
                   <div className="flex items-center gap-2 text-[10px] text-emerald-500">
@@ -385,7 +398,7 @@ export function AuditPage() {
                         target="_blank"
                         className="underline underline-offset-2 hover:text-emerald-400"
                       >
-                        Abrir
+                        Open
                       </a>
                     ) : (
                       <code className="px-2 py-1 rounded bg-[var(--bg)]/60 border border-[var(--card-border)] text-[var(--text)]">
@@ -434,21 +447,21 @@ function StatCard({
   color: StatColor
 }) {
   const colors: Record<StatColor, string> = {
-    emerald: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
-    blue: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
-    amber: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
-    cyan: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20',
+    emerald: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30 shadow-glow-emerald',
+    blue: 'text-blue-500 bg-blue-500/10 border-blue-500/30 shadow-glow-blue',
+    amber: 'text-amber-500 bg-amber-500/10 border-amber-500/30 shadow-glow-amber',
+    cyan: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/30',
   }
 
   return (
-    <div className="glass-card p-5 rounded-2xl group cursor-default">
+    <div className="glass-card p-6 rounded-2xl group cursor-default shadow-md hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
       <div className="flex items-center gap-4">
-        <div className={`flex h-12 w-12 items-center justify-center rounded-xl border transition-transform group-hover:scale-110 ${colors[color]}`}>
-          <Icon className="h-6 w-6" />
+        <div className={`flex h-14 w-14 items-center justify-center rounded-xl border-2 transition-all group-hover:scale-110 group-hover:rotate-3 ${colors[color]}`}>
+          <Icon className="h-7 w-7" />
         </div>
         <div>
-          <p className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">{label}</p>
-          <p className="text-2xl font-bold tracking-tight text-[var(--text)]">{value}</p>
+          <p className="text-xs font-bold text-[var(--muted)] uppercase tracking-[0.1em] opacity-85 mb-1">{label}</p>
+          <p className="text-3xl font-bold tracking-tight text-[var(--text)]">{value}</p>
         </div>
       </div>
     </div>
@@ -466,29 +479,54 @@ function StepItem({
   status: StepStatus
   icon: LucideIcon
 }) {
-  const configs: Record<StepStatus, { border: string; text: string; icon: string }> = {
-    idle: { border: 'border-[var(--card-border)]', text: 'text-[var(--text-muted)]', icon: 'bg-[var(--bg)]/50' },
-    running: { border: 'border-blue-500/30', text: 'text-blue-500', icon: 'bg-blue-500/10 animate-pulse' },
-    done: { border: 'border-emerald-500/30', text: 'text-emerald-500', icon: 'bg-emerald-500/10' },
-    skipped: { border: 'border-amber-500/30', text: 'text-amber-500', icon: 'bg-amber-500/10' },
-    error: { border: 'border-rose-500/30', text: 'text-rose-500', icon: 'bg-rose-500/10' },
+  const configs: Record<StepStatus, { border: string; text: string; icon: string; shadow: string }> = {
+    idle: { 
+      border: 'border-[var(--card-border)]', 
+      text: 'text-[var(--muted)]', 
+      icon: 'bg-[var(--bg)]/50',
+      shadow: 'shadow-sm'
+    },
+    running: { 
+      border: 'border-blue-500/50', 
+      text: 'text-blue-500', 
+      icon: 'bg-blue-500/15 animate-pulse',
+      shadow: 'shadow-md shadow-glow-blue'
+    },
+    done: { 
+      border: 'border-emerald-500/50', 
+      text: 'text-emerald-500', 
+      icon: 'bg-emerald-500/15',
+      shadow: 'shadow-md shadow-glow-emerald'
+    },
+    skipped: { 
+      border: 'border-amber-500/50', 
+      text: 'text-amber-500', 
+      icon: 'bg-amber-500/15',
+      shadow: 'shadow-md shadow-glow-amber'
+    },
+    error: { 
+      border: 'border-rose-500/50', 
+      text: 'text-rose-500', 
+      icon: 'bg-rose-500/15',
+      shadow: 'shadow-md'
+    },
   }
 
   const cfg = configs[status]
 
   return (
-    <div className={`glass-card p-5 rounded-3xl border-2 flex flex-col gap-4 transition-all duration-500 ${cfg.border}`}>
+    <div className={`glass-card p-6 rounded-3xl border-2 flex flex-col gap-4 transition-all duration-300 hover:-translate-y-1 ${cfg.border} ${cfg.shadow}`}>
       <div className="flex items-center justify-between">
-        <div className={`p-2.5 rounded-xl border border-[var(--card-border)] ${cfg.icon}`}>
-          <Icon className={`w-5 h-5 ${cfg.text}`} />
+        <div className={`p-3 rounded-xl border-2 transition-all ${cfg.icon} ${cfg.border}`}>
+          <Icon className={`w-6 h-6 ${cfg.text}`} />
         </div>
-        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border border-[var(--card-border)] ${cfg.text}`}>
+        <span className={`text-[10px] font-black uppercase tracking-[0.1em] px-3 py-1 rounded-lg border-2 ${cfg.border} ${cfg.text} bg-[var(--card-bg)]`}>
           {status}
         </span>
       </div>
       <div>
-        <h4 className="font-bold text-[var(--text)] text-sm mb-1">{title}</h4>
-        <p className="text-[10px] text-[var(--text-muted)] font-medium leading-relaxed uppercase tracking-tighter">{description}</p>
+        <h4 className="font-bold text-[var(--text)] text-base mb-1.5">{title}</h4>
+        <p className="text-xs text-[var(--muted)] font-medium leading-relaxed opacity-85">{description}</p>
       </div>
     </div>
   )

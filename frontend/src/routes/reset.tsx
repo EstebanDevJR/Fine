@@ -9,7 +9,7 @@ export function ResetPasswordPage() {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>('Verificando enlace de recuperación...')
+  const [message, setMessage] = useState<string | null>('Verifying recovery link...')
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -17,14 +17,14 @@ export function ResetPasswordPage() {
     const { data } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setReady(true)
-        setMessage('Enlace válido. Define tu nueva contraseña.')
+        setMessage('Valid link. Set your new password.')
       }
     })
-    // En caso de que ya tengamos sesión del enlace
+    // In case we already have a session from the link
     supabase.auth.getSession().then(({ data: sess }) => {
       if (sess.session) {
         setReady(true)
-        setMessage('Enlace válido. Define tu nueva contraseña.')
+        setMessage('Valid link. Set your new password.')
       }
     })
     return () => {
@@ -36,11 +36,11 @@ export function ResetPasswordPage() {
     setError(null)
     setMessage(null)
     if (password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres.')
+      setError('Password must be at least 8 characters long.')
       return
     }
     if (password !== confirm) {
-      setError('Las contraseñas no coinciden.')
+      setError('Passwords do not match.')
       return
     }
     setBusy(true)
@@ -49,7 +49,7 @@ export function ResetPasswordPage() {
     if (err) {
       setError(err.message)
     } else {
-      setMessage('Contraseña actualizada. Redirigiendo...')
+      setMessage('Password updated. Redirecting...')
       setTimeout(() => navigate({ to: '/upload' }), 1000)
     }
   }
@@ -61,7 +61,7 @@ export function ResetPasswordPage() {
           onClick={() => navigate({ to: '/' })}
           className="flex items-center gap-2 text-white/60 text-sm hover:text-white transition"
         >
-          <ArrowLeft className="w-4 h-4" /> Volver
+          <ArrowLeft className="w-4 h-4" /> Back
         </button>
 
         <div className="rounded-3xl border border-white/10 bg-white/5 p-8 space-y-4">
@@ -70,13 +70,13 @@ export function ResetPasswordPage() {
               <ShieldCheck className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">Restablecer contraseña</h1>
-              <p className="text-sm text-white/60">Usa el enlace enviado a tu correo.</p>
+              <h1 className="text-xl font-bold">Reset password</h1>
+              <p className="text-sm text-white/60">Use the link sent to your email.</p>
             </div>
           </div>
 
           <div className="space-y-3">
-            <label className="text-sm text-white/70">Nueva contraseña</label>
+            <label className="text-sm text-white/70">New password</label>
             <div className="flex items-center gap-3 rounded-2xl bg-white/5 border border-white/10 px-4 py-3">
               <KeyRound className="w-4 h-4 text-white/50" />
               <input
@@ -91,7 +91,7 @@ export function ResetPasswordPage() {
           </div>
 
           <div className="space-y-3">
-            <label className="text-sm text-white/70">Confirmar contraseña</label>
+            <label className="text-sm text-white/70">Confirm password</label>
             <div className="flex items-center gap-3 rounded-2xl bg-white/5 border border-white/10 px-4 py-3">
               <KeyRound className="w-4 h-4 text-white/50" />
               <input
@@ -122,7 +122,7 @@ export function ResetPasswordPage() {
             disabled={!ready || busy}
             className="w-full rounded-2xl bg-white text-black font-bold py-3 text-sm hover:bg-blue-50 disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Actualizar contraseña'}
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Update password'}
           </button>
         </div>
       </div>

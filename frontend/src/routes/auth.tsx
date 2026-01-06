@@ -35,12 +35,12 @@ export function AuthPage() {
         navigate({ to: '/upload' })
       } else if (mode === 'register') {
         await signUpWithEmail(email, password)
-        setMessage('Registro exitoso. Revisa tu correo y valida tu cuenta para iniciar sesión.')
+        setMessage('Registration successful. Check your email and validate your account to sign in.')
         setMode('login')
         setPassword('')
       } else if (mode === 'reset') {
         await resetPasswordWithEmail(email, resetRedirect)
-        setMessage('Te enviamos un correo para restablecer tu contraseña. Revisa tu bandeja.')
+        setMessage('We sent you an email to reset your password. Check your inbox.')
       }
     } catch (err) {
       setError((err as Error).message)
@@ -102,7 +102,7 @@ export function AuthPage() {
           className="absolute left-6 top-8 flex items-center gap-2 text-sm font-medium text-white/40 transition hover:text-white sm:left-8 lg:left-12"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span>Volver</span>
+          <span>Back</span>
         </button>
 
         {/* Mobile Logo */}
@@ -120,7 +120,7 @@ export function AuthPage() {
                 ? 'Enter your details to access your dashboard'
                 : mode === 'register'
                   ? 'Get started with the most powerful audit platform'
-                  : 'Ingresa tu correo y te enviaremos un enlace de recuperación'}
+                  : 'Enter your email and we will send you a recovery link'}
             </p>
           </div>
 
@@ -137,8 +137,9 @@ export function AuthPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-2xl bg-white/5 border border-white/5 pl-11 pr-4 py-3 text-white placeholder:text-white/20 outline-none focus:border-blue-500/50 focus:bg-white/[0.07] transition-all"
+                    className="w-full rounded-2xl bg-white/5 border-2 border-white/10 pl-11 pr-4 py-3.5 text-white placeholder:text-white/40 outline-none focus:border-blue-500/70 focus:bg-white/[0.08] focus:shadow-lg focus:shadow-blue-500/20 transition-all"
                     placeholder="name@company.com"
+                    aria-label="Email address"
                   />
                 </div>
               </div>
@@ -170,8 +171,9 @@ export function AuthPage() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full rounded-2xl bg-white/5 border border-white/5 pl-11 pr-4 py-3 text-white placeholder:text-white/20 outline-none focus:border-blue-500/50 focus:bg-white/[0.07] transition-all"
+                      className="w-full rounded-2xl bg-white/5 border-2 border-white/10 pl-11 pr-4 py-3.5 text-white placeholder:text-white/40 outline-none focus:border-blue-500/70 focus:bg-white/[0.08] focus:shadow-lg focus:shadow-blue-500/20 transition-all"
                       placeholder="••••••••"
+                      aria-label="Password"
                     />
                   </div>
                 </div>
@@ -192,7 +194,7 @@ export function AuthPage() {
             <button
               type="submit"
               disabled={busy}
-              className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-white px-4 py-4 text-sm font-bold text-black transition hover:bg-blue-50 disabled:opacity-50"
+              className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-white px-4 py-4 text-sm font-bold text-black transition-all hover:bg-blue-50 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-white/20 min-h-[48px] ripple"
             >
               {busy ? (
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-black/20 border-t-black" />

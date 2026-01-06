@@ -148,8 +148,8 @@ export function AnalysesPage() {
               <Trash2 className="w-5 h-5 text-rose-500" />
             </div>
             <div>
-              <p className="text-sm font-bold text-[var(--text)]">Confirmar eliminación</p>
-              <p className="text-[11px] text-[var(--text-muted)]">Se eliminarán el análisis y sus artefactos.</p>
+              <p className="text-sm font-bold text-[var(--text)]">Confirm deletion</p>
+              <p className="text-[11px] text-[var(--text-muted)]">The analysis and its artifacts will be deleted.</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -158,13 +158,13 @@ export function AnalysesPage() {
               className="flex-1 py-3 rounded-xl bg-rose-500 text-white text-[11px] font-black uppercase tracking-[0.2em] hover:brightness-110 transition-colors disabled:opacity-70"
               disabled={deleteAnalysis.isPending}
             >
-              {deleteAnalysis.isPending ? 'Eliminando...' : 'Eliminar'}
+              {deleteAnalysis.isPending ? 'Deleting...' : 'Delete'}
             </button>
             <button
               onClick={() => setPendingDelete(null)}
               className="flex-1 py-3 rounded-xl border border-[var(--card-border)] text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] hover:bg-[var(--text)]/5 transition-colors"
             >
-              Cancelar
+              Cancel
             </button>
           </div>
         </div>
@@ -361,7 +361,7 @@ export function AnalysesPage() {
                     onClick={() => setShowRaw((v) => !v)}
                     className="text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-lg border border-[var(--card-border)] text-[var(--text)] hover:bg-[var(--text)]/5 transition-colors"
                   >
-                    {showRaw ? 'Vista simple' : 'Ver JSON'}
+                    {showRaw ? 'Simple view' : 'View JSON'}
                   </button>
                 </div>
 
@@ -794,13 +794,13 @@ function DiagnosisNarrative({
 
   const riskSentence =
     riskList.length > 0
-      ? `Riesgos detectados: ${riskList.map((r, i) => `${i + 1}) ${r}`).join(' ')}`
-      : 'No se reportaron riesgos específicos.'
+      ? `Detected risks: ${riskList.map((r, i) => `${i + 1}) ${r}`).join(' ')}`
+      : 'No specific risks were reported.'
 
   const recSentence =
     recList.length > 0
-      ? `Recomendaciones clave: ${recList.map((r, i) => `${i + 1}) ${r}`).join(' ')}`
-      : 'Sin recomendaciones adicionales.'
+      ? `Key recommendations: ${recList.map((r, i) => `${i + 1}) ${r}`).join(' ')}`
+      : 'No additional recommendations.'
 
   return (
     <div className="space-y-3">

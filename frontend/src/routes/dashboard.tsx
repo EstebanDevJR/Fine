@@ -107,7 +107,11 @@ export function DashboardPage() {
 
           <div className="divide-y divide-[var(--card-border)] rounded-2xl border border-[var(--card-border)] overflow-hidden bg-[var(--bg)]/30">
             {latestAnalyses.length === 0 ? (
-              <div className="p-10 text-center text-xs text-[var(--text-muted)] uppercase tracking-widest">No analyses</div>
+              <div className="empty-state">
+                <BarChart2 className="w-12 h-12 text-[var(--muted)] opacity-30 mb-4" />
+                <p className="text-sm font-semibold text-[var(--text)] mb-1">No analyses yet</p>
+                <p className="text-xs text-[var(--muted)] opacity-75">Start your first audit to see results here</p>
+              </div>
             ) : (
               latestAnalyses.map((a) => (
                 <div key={a.id} className="p-4 flex items-center gap-3">
@@ -194,20 +198,20 @@ function StatCard({
   color: StatColor
 }) {
   const colors: Record<StatColor, string> = {
-    emerald: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
-    blue: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
-    amber: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
-    cyan: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20',
+    emerald: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30 shadow-glow-emerald',
+    blue: 'text-blue-500 bg-blue-500/10 border-blue-500/30 shadow-glow-blue',
+    amber: 'text-amber-500 bg-amber-500/10 border-amber-500/30 shadow-glow-amber',
+    cyan: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/30',
   }
   return (
-    <div className="glass-card p-5 rounded-2xl group cursor-default">
+    <div className="glass-card p-6 rounded-2xl group cursor-default shadow-md hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
       <div className="flex items-center gap-4">
-        <div className={`flex h-12 w-12 items-center justify-center rounded-xl border transition-transform group-hover:scale-110 ${colors[color]}`}>
-          <Icon className="h-6 w-6" />
+        <div className={`flex h-14 w-14 items-center justify-center rounded-xl border-2 transition-all group-hover:scale-110 group-hover:rotate-3 ${colors[color]}`}>
+          <Icon className="h-7 w-7" />
         </div>
         <div>
-          <p className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">{label}</p>
-          <p className="text-2xl font-bold tracking-tight text-[var(--text)]">{value}</p>
+          <p className="text-xs font-bold text-[var(--muted)] uppercase tracking-[0.1em] opacity-85 mb-1">{label}</p>
+          <p className="text-3xl font-bold tracking-tight text-[var(--text)]">{value}</p>
         </div>
       </div>
     </div>
@@ -235,7 +239,10 @@ function MiniList({
       </div>
       <div className="rounded-xl border border-[var(--card-border)] bg-[var(--bg)]/40 divide-y divide-[var(--card-border)]">
         {items.length === 0 ? (
-          <div className="p-4 text-[11px] text-[var(--text-muted)]">{empty}</div>
+          <div className="empty-state py-8">
+            <Icon className="w-10 h-10 text-[var(--muted)] opacity-30 mb-3" />
+            <p className="text-xs text-[var(--muted)] opacity-75">{empty}</p>
+          </div>
         ) : (
           items.slice(-5).reverse().map((item) => (
             <div key={item.id} className="p-4 flex items-center gap-3">
@@ -283,16 +290,19 @@ function KpiBadge({
 }
 
 function SparkBars({ data }: { data: { day: string; value: number }[] }) {
-  if (!data?.length) return <span className="text-[11px] text-[var(--text-muted)]">—</span>
+  if (!data?.length) return <span className="text-[11px] text-[var(--muted)] opacity-75">—</span>
   const max = Math.max(...data.map((d) => d.value), 1)
   return (
-    <div className="flex items-end gap-1 h-10">
-      {data.map((d) => (
+    <div className="flex items-end gap-1.5 h-12">
+      {data.map((d, i) => (
         <div
           key={d.day}
           title={`${d.day}: ${d.value}`}
-          className="flex-1 rounded-md bg-gradient-to-t from-emerald-500/20 to-emerald-500/60"
-          style={{ height: `${(d.value / max) * 100}%` }}
+          className="flex-1 rounded-md bg-gradient-to-t from-emerald-600 via-emerald-500 to-emerald-400 hover:from-emerald-500 hover:via-emerald-400 hover:to-emerald-300 transition-all duration-200 shadow-sm hover:shadow-md"
+          style={{ 
+            height: `${Math.max((d.value / max) * 100, 8)}%`,
+            minHeight: '8px'
+          }}
         />
       ))}
     </div>

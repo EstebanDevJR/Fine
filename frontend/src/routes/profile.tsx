@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useAuth } from '../api/useAuth'
 import { api } from '../api/client'
-import { User as UserIcon, Shield, Clock3, LogOut, Trash2 } from 'lucide-react'
+import { User as UserIcon, LogOut, Trash2 } from 'lucide-react'
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   return (
@@ -83,33 +83,13 @@ export function ProfilePage() {
         </div>
 
         <div className="grid gap-4">
-          <div className="glass-card rounded-[1.5rem] border border-emerald-500/20 bg-emerald-500/5 p-5 space-y-3">
-            <div className="flex items-center gap-2 text-emerald-400">
-              <Shield className="h-4 w-4" />
-              <span className="text-xs font-black uppercase tracking-[0.16em]">Session</span>
-            </div>
-            <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-              Your Supabase session token is stored client-side and sent automatically to the API for authenticated
-              requests. Sign out to revoke it on this device.
-            </p>
-          </div>
-
-          <div className="glass-card rounded-[1.5rem] p-5 space-y-3">
-            <div className="flex items-center gap-2 text-blue-400">
-              <Clock3 className="h-4 w-4" />
-              <span className="text-xs font-black uppercase tracking-[0.16em]">Tip</span>
-            </div>
-            <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-              Need to refresh permissions? Sign out and back in to refresh the JWT and sync new roles.
-            </p>
-          </div>
           <div className="glass-card rounded-[1.5rem] border border-rose-500/30 bg-rose-500/5 p-5 space-y-3">
             <div className="flex items-center gap-2 text-rose-400">
               <Trash2 className="h-4 w-4" />
-              <span className="text-xs font-black uppercase tracking-[0.16em]">Eliminar cuenta</span>
+              <span className="text-xs font-black uppercase tracking-[0.16em]">Delete account</span>
             </div>
             <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-              Borra tu cuenta, sesiones y todos tus datasets/modelos/análisis. Esta acción es irreversible.
+              Delete your account, sessions and all your datasets/models/analyses. This action is irreversible.
             </p>
             {deleteError && (
               <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
@@ -130,7 +110,7 @@ export function ProfilePage() {
               disabled={deleting}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-500/90 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-500 disabled:opacity-50"
             >
-              {deleting ? 'Eliminando…' : 'Eliminar mi cuenta'}
+              {deleting ? 'Deleting…' : 'Delete my account'}
             </button>
           </div>
         </div>
@@ -142,13 +122,12 @@ export function ProfilePage() {
             <div className="flex items-center gap-3 text-rose-400">
               <Trash2 className="h-5 w-5" />
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.16em]">Eliminar cuenta</p>
-                <p className="text-sm text-rose-100/80">Acción permanente, no se puede deshacer.</p>
+                <p className="text-xs font-black uppercase tracking-[0.16em]">Delete account</p>
+                <p className="text-sm text-rose-100/80">Permanent action, cannot be undone.</p>
               </div>
             </div>
             <p className="mt-4 text-sm text-[var(--text-muted)]">
-              Se borrarán tus datasets, modelos, análisis y reportes (local y S3) asociados a esta cuenta. También se
-              cerrará tu sesión.
+              Your datasets, models, analyses and reports (local and S3) associated with this account will be deleted. Your session will also be closed.
             </p>
             {deleteError && (
               <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
@@ -166,7 +145,7 @@ export function ProfilePage() {
                 className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
                 disabled={deleting}
               >
-                Cancelar
+                Cancel
               </button>
               <button
                 onClick={async () => {
@@ -175,7 +154,7 @@ export function ProfilePage() {
                   setDeleting(true)
                   try {
                     await api.deleteAccount()
-                    setDeleteSuccess('Cuenta eliminada. Cerrando sesión...')
+                    setDeleteSuccess('Account deleted. Signing out...')
                     await signOut()
                     navigate({ to: '/auth' })
                   } catch (err) {
@@ -188,7 +167,7 @@ export function ProfilePage() {
                 disabled={deleting}
                 className="flex-1 rounded-xl bg-rose-500/90 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-500 disabled:opacity-50"
               >
-                {deleting ? 'Eliminando…' : 'Sí, borrar todo'}
+                {deleting ? 'Deleting…' : 'Yes, delete everything'}
               </button>
             </div>
           </div>

@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.graph.advanced_audit_graph import run_advanced_audit_graph
 from app.ai.graph.audit_graph import run_audit_graph
 from app.api.deps import get_app_settings, get_db
 from app.core.auth import get_current_user
@@ -126,11 +127,17 @@ class FullAuditStatusResponse(BaseModel):
     analysis_id: int | None = None
 
 
+class ConversationMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
 class AnalysisQARequest(BaseModel):
     analysis_id: int
     question: str
     page: str | None = None
     page_context: str | None = None
+    conversation_history: list[ConversationMessage] | None = None  # Optional conversation history
 
 
 class AnalysisQAResponse(BaseModel):
@@ -483,7 +490,8 @@ async def analysis_qa(
         )
 
     try:
-        from langchain_core.prompts import ChatPromptTemplate
+        from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+        from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
         from langchain_openai import ChatOpenAI
     except Exception as exc:  # pragma: no cover
         raise HTTPException(
@@ -498,25 +506,38 @@ async def analysis_qa(
     sensitivity = result.get("sensitivity", {}) if isinstance(result, dict) else {}
     xai = result.get("xai", {}) if isinstance(result, dict) else {}
 
-    prompt = ChatPromptTemplate.from_template(
-        """
-        You are an ML audit assistant for the Fine app. Stay on-topic: only answer about audit results,
-        dashboards, uploads, analyses, and this web app. Refuse unrelated requests politely.
-        Be concise (<=5 sentences). Use short bullet-like phrases if listing.
-        Page context: {page} | {page_context}
-        User question: "{question}"
+    # Build conversation history from payload
+    messages = []
+    
+    # System message with context
+    system_content = f"""You are an ML audit assistant for the Fine app. Stay on-topic: only answer about audit results,
+dashboards, uploads, analyses, and this web app. Refuse unrelated requests politely.
+Be concise (<=5 sentences). Use short bullet-like phrases if listing.
 
-        Available analysis context:
-        - Metrics: {metrics}
-        - Diagnosis summary: {diag_summary}
-        - Risks: {diag_risks}
-        - Recommendations: {diag_recs}
-        - Fairness: {fairness}
-        - Robustness: {robustness}
-        - Sensitivity: {sensitivity}
-        - XAI: {xai}
-        """
-    )
+Page context: {payload.page or "unknown"} | {payload.page_context or ""}
+
+Available analysis context:
+- Metrics: {metrics}
+- Diagnosis summary: {diagnose.get("summary", "N/A")}
+- Risks: {diagnose.get("risks", [])}
+- Recommendations: {diagnose.get("recommendations", [])}
+- Fairness: {fairness}
+- Robustness: {robustness}
+- Sensitivity: {sensitivity}
+- XAI: {xai}"""
+    
+    messages.append(SystemMessage(content=system_content))
+    
+    # Add conversation history if provided
+    if payload.conversation_history:
+        for msg in payload.conversation_history:
+            if msg.role == "user":
+                messages.append(HumanMessage(content=msg.content))
+            elif msg.role == "assistant":
+                messages.append(AIMessage(content=msg.content))
+    
+    # Add current question
+    messages.append(HumanMessage(content=payload.question.strip()))
 
     llm = ChatOpenAI(
         model=settings.openai_model,
@@ -526,22 +547,7 @@ async def analysis_qa(
         max_tokens=200,
     )
 
-    chain = prompt | llm
-    resp = chain.invoke(
-        {
-            "question": payload.question.strip(),
-            "page": payload.page or "unknown",
-            "page_context": payload.page_context or "",
-            "metrics": metrics,
-            "diag_summary": diagnose.get("summary"),
-            "diag_risks": diagnose.get("risks"),
-            "diag_recs": diagnose.get("recommendations"),
-            "fairness": fairness,
-            "robustness": robustness,
-            "sensitivity": sensitivity,
-            "xai": xai,
-        }
-    )
+    resp = llm.invoke(messages)
 
     content = resp.content if hasattr(resp, "content") else str(resp)
     return AnalysisQAResponse(answer=content)
@@ -574,6 +580,41 @@ async def run_graph_audit(
         status="completed",
         problem_type=result_state.get("problem_type"),
         results=result_state.get("results", {}),
+    )
+
+
+@router.post(
+    "/audit/graph/advanced",
+    response_model=GraphAuditResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Run advanced audit via LangGraph with specialized agents",
+)
+async def run_advanced_graph_audit(
+    payload: FullAuditRequest,
+    _: None = Depends(rate_limit),
+    user_id: str = Depends(get_current_user),
+    settings: Settings = Depends(get_app_settings),
+) -> GraphAuditResponse:
+    """Run advanced audit with specialized LLM agents, conditional routing, and advanced metrics."""
+    try:
+        result_state = await run_advanced_audit_graph(
+            {**payload.dict(), "owner_id": user_id}, settings=settings, enable_checkpoints=True
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
+        ) from exc
+
+    # Include agent insights in response
+    results = result_state.get("results", {})
+    results["agent_insights"] = result_state.get("agent_insights", {})
+
+    return GraphAuditResponse(
+        status="completed",
+        problem_type=result_state.get("problem_type"),
+        results=results,
     )
 
 

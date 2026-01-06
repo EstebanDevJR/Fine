@@ -27,33 +27,33 @@ function HeroSection({
         </div>
 
         <div className="space-y-4 sm:space-y-6">
-          <h1 className="text-3xl font-semibold leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
+          <h1 className="text-4xl font-bold leading-[1.1] tracking-tight text-white sm:text-6xl md:text-7xl lg:text-8xl drop-shadow-lg">
             Audit, explain, and harden your ML models.
           </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-white/85 sm:text-lg md:text-xl">
+          <p className="max-w-2xl text-base leading-relaxed text-white/90 sm:text-lg md:text-xl font-medium">
             Ingest models and datasets, evaluate metrics, run XAI, stress and fairness checks, then get an LLM-driven
             diagnosis and executive-ready reports. Fully automated—just watch the progress.
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-          <MagneticButton size="lg" variant="primary" onClick={onScrollPipeline} className="text-sm sm:text-base">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
+          <MagneticButton size="lg" variant="primary" onClick={onScrollPipeline} className="text-sm sm:text-base shadow-xl shadow-emerald-500/20">
             View pipeline
           </MagneticButton>
-          <MagneticButton size="lg" variant="secondary" onClick={onStart} className="text-sm sm:text-base">
+          <MagneticButton size="lg" variant="secondary" onClick={onStart} className="text-sm sm:text-base shadow-lg">
             Start audit
           </MagneticButton>
         </div>
 
-        <div className="grid gap-4 pt-2 sm:grid-cols-3">
+        <div className="grid gap-5 pt-4 sm:grid-cols-3">
           {[
             { title: 'Automated', desc: 'Full pipeline, no manual steps.' },
             { title: 'Explainable', desc: 'XAI + fairness insights.' },
             { title: 'Observable', desc: 'Traced with Langfuse.' },
-          ].map((item) => (
-            <div key={item.title} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">{item.title}</p>
-              <p className="text-sm text-white/85">{item.desc}</p>
+          ].map((item, i) => (
+            <div key={item.title} className="rounded-2xl border-2 border-white/15 bg-white/8 p-5 backdrop-blur-xl hover:border-white/25 hover:bg-white/12 transition-all duration-200 hover:-translate-y-1 shadow-lg">
+              <p className="text-xs font-bold uppercase tracking-[0.1em] text-white/90 mb-2">{item.title}</p>
+              <p className="text-sm text-white/90 font-medium">{item.desc}</p>
             </div>
           ))}
         </div>
@@ -64,9 +64,9 @@ function HeroSection({
 
 function HowItWorksSection({ onStart, onScrollPipeline }: { onStart: () => void; onScrollPipeline: () => void }) {
   const steps = [
-    { title: 'Upload', desc: 'Datasets & models via S3 presign or direct upload with checksum.' },
+    { title: 'Upload', desc: 'Datasets & models' },
     { title: 'Run', desc: 'Metrics → XAI → stress → fairness → diagnose with LangGraph + Celery.' },
-    { title: 'Report', desc: 'LLM summary + PDF/HTML stored per user with Supabase Auth context.' },
+    { title: 'Report', desc: 'LLM summary' },
   ]
   return (
     <section className="flex h-screen w-screen shrink-0 snap-start items-center px-4 pt-16 md:px-12 lg:px-16">
@@ -558,7 +558,7 @@ export function LandingPage() {
 
   return (
     <main className="relative h-screen w-full overflow-hidden bg-[#0A0F1E]" style={{ overscrollBehavior: 'none' }}>
-      <CustomCursor />
+      {/* <CustomCursor /> */}
       <GrainOverlay />
 
       <div
@@ -597,7 +597,7 @@ export function LandingPage() {
       </div>
 
       <nav
-        className={`fixed left-0 right-0 top-0 z-50 flex items-center justify-between px-4 py-4 transition-opacity duration-700 sm:px-6 md:px-12 md:py-6 ${
+        className={`fixed left-0 right-0 top-0 z-50 flex items-center justify-between px-4 py-4 transition-opacity duration-700 sm:px-6 md:px-12 md:py-6 backdrop-blur-2xl bg-black/20 border-b border-white/10 ${
           isLoaded ? 'opacity-100' : 'opacity-0'
         }`}
       >

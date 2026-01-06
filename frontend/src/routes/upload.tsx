@@ -87,9 +87,9 @@ export function UploadPage() {
   const validateFile = (file: File | null, allowedExts: string[], maxMB: number) => {
     if (!file) return null
     const ext = file.name.split('.').pop()?.toLowerCase() || ''
-    if (!allowedExts.includes(ext)) return `Formato inválido. Usa: ${allowedExts.join(', ')}`
+    if (!allowedExts.includes(ext)) return `Invalid format. Use: ${allowedExts.join(', ')}`
     const sizeMB = file.size / 1024 / 1024
-    if (sizeMB > maxMB) return `Tamaño máximo ${maxMB}MB`
+    if (sizeMB > maxMB) return `Maximum size ${maxMB}MB`
     return null
   }
 
@@ -242,15 +242,16 @@ export function UploadPage() {
               success={uploadDataset.isSuccess}
               progress={datasetProgress}
               validationError={datasetError}
-              helper={`Formatos: CSV/Parquet · Máx ${datasetMaxMB}MB`}
+              helper={`Formats: CSV/Parquet · Max ${datasetMaxMB}MB`}
               fields={
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Target Column</label>
+                <div className="space-y-2.5">
+                  <label className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--text)] opacity-85">Target Column</label>
                   <input
-                    className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--bg)]/50 px-4 py-2.5 text-sm text-[var(--text)] outline-none focus:border-emerald-500/50 transition-all"
+                    className="input-enhanced w-full"
                     placeholder="e.g. target, label"
                     value={target}
                     onChange={(e) => setTarget(e.target.value)}
+                    aria-label="Target column name"
                   />
                 </div>
               }
@@ -268,14 +269,15 @@ export function UploadPage() {
               success={uploadModel.isSuccess}
               progress={modelProgress}
               validationError={modelError}
-              helper={`Formatos: pkl/joblib/pt/pth/bin · Máx ${modelMaxMB}MB`}
+              helper={`Formats: pkl/joblib/pt/pth/bin · Max ${modelMaxMB}MB`}
               fields={
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Framework</label>
+                <div className="space-y-2.5">
+                  <label className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--text)] opacity-85">Framework</label>
                   <select
-                    className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--bg)]/50 px-4 py-2.5 text-sm text-[var(--text)] outline-none focus:border-blue-500/50 transition-all appearance-none cursor-pointer"
+                    className="input-enhanced w-full cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22currentColor%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpolyline points=%226 9 12 15 18 9%22%3E%3C/polyline%3E%3C/svg%3E')] bg-[length:20px] bg-[right_12px_center] bg-no-repeat pr-10"
                     value={framework}
                     onChange={(e) => setFramework(e.target.value)}
+                    aria-label="Model framework"
                   >
                     <option value="sklearn">Scikit-learn</option>
                     <option value="xgboost">XGBoost</option>
@@ -404,27 +406,52 @@ function UploadForm({
   helper,
 }: UploadFormProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
   const safeProgress = progress ?? 0
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files[0]
+    if (file) onFile(file)
+  }
   
   return (
-    <div className="glass-card p-6 rounded-[2rem]">
+    <div className="glass-card p-8 rounded-[2rem] shadow-lg hover:shadow-xl transition-all duration-200">
       <div className="flex items-center gap-4 mb-6">
-        <div className="p-3 bg-[var(--bg)]/50 rounded-2xl border border-[var(--card-border)]">
+        <div className="p-3 bg-[var(--bg)]/50 rounded-2xl border border-[var(--card-border)] shadow-md">
           {icon}
         </div>
         <div>
           <h2 className="text-lg font-bold text-[var(--text)] tracking-tight">{title}</h2>
-          <p className="text-xs text-[var(--text-muted)] font-medium">{description}</p>
+          <p className="text-xs text-[var(--muted)] font-medium opacity-85">{description}</p>
         </div>
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-6">
         <div 
           role="button"
           tabIndex={0}
           onClick={() => inputRef.current?.click()}
-          className={`relative cursor-pointer border-2 border-dashed rounded-2xl p-8 transition-all flex flex-col items-center justify-center gap-3 ${
-            selectedFile ? 'border-amber-500/50 bg-amber-500/5' : 'border-[var(--card-border)] hover:border-amber-500/30 bg-[var(--bg)]/30'
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`relative cursor-pointer border-2 border-dashed rounded-2xl p-10 transition-all flex flex-col items-center justify-center gap-4 min-h-[180px] ${
+            isDragging
+              ? 'border-emerald-500/70 bg-emerald-500/10 scale-[1.02] shadow-glow-emerald'
+              : selectedFile
+                ? 'border-amber-500/60 bg-amber-500/8 hover:border-amber-500/80 hover:bg-amber-500/12'
+                : 'border-[var(--card-border)] hover:border-amber-500/40 bg-[var(--bg)]/30 hover:bg-[var(--bg)]/50'
           }`}
         >
           <input 
@@ -436,27 +463,48 @@ function UploadForm({
           />
           {selectedFile ? (
             <>
-              <FileText className="w-8 h-8 text-amber-500" />
-              <div className="text-center">
-                <p className="text-sm font-bold text-[var(--text)] truncate max-w-[200px]">{selectedFile.name}</p>
-                <p className="text-[10px] text-[var(--text-muted)] font-mono">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+              <div className="relative">
+                <FileText className="w-10 h-10 text-amber-500" />
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-[var(--bg)] flex items-center justify-center">
+                  <CheckCircle2 className="w-2.5 h-2.5 text-white" />
+                </div>
               </div>
+              <div className="text-center space-y-1">
+                <p className="text-sm font-bold text-[var(--text)] truncate max-w-[240px]">{selectedFile.name}</p>
+                <p className="text-[10px] text-[var(--muted)] font-mono opacity-75">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onFile(null)
+                }}
+                className="text-xs text-[var(--muted)] hover:text-rose-500 transition-colors"
+              >
+                Remove file
+              </button>
             </>
           ) : (
             <>
-              <Upload className="w-8 h-8 text-[var(--text-muted)] opacity-30" />
-              <p className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Drop file to secure</p>
+              <div className={`transition-transform ${isDragging ? 'scale-110' : ''}`}>
+                <Upload className={`w-10 h-10 ${isDragging ? 'text-emerald-500' : 'text-[var(--muted)] opacity-40'}`} />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-sm font-bold text-[var(--text)]">
+                  {isDragging ? 'Drop file here' : 'Drop file to secure'}
+                </p>
+                <p className="text-xs text-[var(--muted)] opacity-60">or click to browse</p>
+              </div>
             </>
           )}
         </div>
 
         {helper && (
-          <p className="text-[11px] text-[var(--text-muted)] font-medium">{helper}</p>
+          <p className="text-[11px] text-[var(--muted)] font-medium opacity-75 px-1">{helper}</p>
         )}
 
         {validationError && (
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[10px] font-bold uppercase">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+          <div className="flex items-center gap-2.5 p-4 rounded-xl bg-rose-500/10 border-2 border-rose-500/30 text-rose-500 text-xs font-bold uppercase shadow-md">
+            <AlertCircle className="w-5 h-5 shrink-0" />
             <p>{validationError}</p>
           </div>
         )}
@@ -466,37 +514,50 @@ function UploadForm({
         <button
           onClick={onSubmit}
           disabled={!selectedFile || isLoading || Boolean(validationError)}
-          className={`w-full py-4 rounded-xl font-bold text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${
+          className={`w-full py-4 rounded-xl font-bold text-xs uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-2 min-h-[48px] ripple ${
             !selectedFile || isLoading || validationError
-              ? 'bg-[var(--card-border)] text-[var(--text-muted)] cursor-not-allowed' 
-              : 'bg-[var(--text)] text-[var(--bg)] hover:opacity-90 shadow-lg'
+              ? 'bg-[var(--card-border)] text-[var(--muted)] cursor-not-allowed opacity-60' 
+              : 'bg-[var(--text)] text-[var(--bg)] hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-[var(--text)]/20'
           }`}
         >
-          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="w-4 h-4" /> Store Asset</>}
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Uploading...</span>
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4" />
+              <span>Store Asset</span>
+            </>
+          )}
         </button>
 
         {safeProgress > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-[10px] font-mono text-[var(--text-muted)]">
-              <span>Upload</span>
-              <span>{safeProgress}%</span>
+          <div className="space-y-2.5 p-4 bg-[var(--card-bg)] rounded-xl border border-[var(--card-border)]">
+            <div className="flex items-center justify-between text-xs font-semibold text-[var(--text)]">
+              <span>Upload Progress</span>
+              <span className="font-mono">{safeProgress}%</span>
             </div>
-            <div className="h-2 w-full bg-[var(--card-border)] rounded-full overflow-hidden">
-              <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${safeProgress}%` }} />
+            <div className="h-2.5 w-full bg-[var(--card-border)] rounded-full overflow-hidden shadow-inner">
+              <div 
+                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all duration-500 shadow-glow-emerald rounded-full" 
+                style={{ width: `${safeProgress}%` }}
+              />
             </div>
           </div>
         )}
 
         {error && (
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[10px] font-bold uppercase">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+          <div className="flex items-center gap-2.5 p-4 rounded-xl bg-rose-500/10 border-2 border-rose-500/30 text-rose-500 text-xs font-bold uppercase shadow-md animate-fade-in">
+            <AlertCircle className="w-5 h-5 shrink-0" />
             <p>{error.message}</p>
           </div>
         )}
         
         {success && (
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-bold uppercase">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <div className="flex items-center gap-2.5 p-4 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/30 text-emerald-500 text-xs font-bold uppercase shadow-md shadow-glow-emerald animate-fade-in">
+            <CheckCircle2 className="w-5 h-5 shrink-0" />
             <p>Ready in vault</p>
           </div>
         )}
@@ -555,8 +616,14 @@ function InventorySection({
             </div>
           ))
         ) : (activeTab === 'datasets' ? datasets : models).length === 0 ? (
-          <div className="p-16 text-center text-[var(--text-muted)] opacity-30 text-xs font-bold uppercase tracking-widest">
-            No assets detected
+          <div className="empty-state py-16">
+            {activeTab === 'datasets' ? (
+              <Database className="w-16 h-16 text-[var(--muted)] opacity-30 mb-4" />
+            ) : (
+              <Cpu className="w-16 h-16 text-[var(--muted)] opacity-30 mb-4" />
+            )}
+            <p className="text-sm font-semibold text-[var(--text)] mb-1">No {activeTab} detected</p>
+            <p className="text-xs text-[var(--muted)] opacity-75">Upload your first {activeTab.slice(0, -1)} to get started</p>
           </div>
         ) : (
           <>
@@ -635,8 +702,8 @@ function ConfirmDeleteButton({ onConfirm, label }: { onConfirm: () => void; labe
                 <Trash2 className="w-5 h-5 text-rose-500" />
               </div>
               <div>
-                <p className="text-sm font-bold text-[var(--text)]">Confirmar eliminación</p>
-                <p className="text-[11px] text-[var(--text-muted)]">Esto también eliminará análisis asociados.</p>
+                <p className="text-sm font-bold text-[var(--text)]">Confirm deletion</p>
+                <p className="text-[11px] text-[var(--text-muted)]">This will also delete associated analyses.</p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -647,13 +714,13 @@ function ConfirmDeleteButton({ onConfirm, label }: { onConfirm: () => void; labe
                 }}
                 className="flex-1 py-3 rounded-xl bg-rose-500 text-white text-[11px] font-black uppercase tracking-[0.2em] hover:brightness-110 transition-colors"
               >
-                Eliminar
+                Delete
               </button>
               <button
                 onClick={() => setOpen(false)}
                 className="flex-1 py-3 rounded-xl border border-[var(--card-border)] text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] hover:bg-[var(--text)]/5 transition-colors"
               >
-                Cancelar
+                Cancel
               </button>
             </div>
           </div>

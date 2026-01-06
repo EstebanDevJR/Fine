@@ -18,13 +18,13 @@ export function AppShell() {
       <div className="min-h-screen text-[var(--text)] transition-colors duration-500 relative overflow-hidden">
         {/* Dynamic Background */}
         <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-          {/* Large Glows - Increased opacity and spread */}
-          <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-blue-600/20 blur-[140px] mix-blend-screen animate-pulse" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-amber-600/15 blur-[140px] mix-blend-screen animate-pulse" style={{ animationDelay: '2s' }} />
+          {/* Large Glows - Enhanced with better gradients */}
+          <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-gradient-to-br from-blue-600/25 via-blue-500/20 to-transparent blur-[140px] mix-blend-screen animate-pulse" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-gradient-to-tl from-amber-600/20 via-amber-500/15 to-transparent blur-[140px] mix-blend-screen animate-pulse" style={{ animationDelay: '2s' }} />
           
-          {/* Secondary Accent Glows */}
-          <div className="absolute top-[30%] right-[10%] w-[30%] h-[30%] rounded-full bg-blue-400/10 blur-[100px]" />
-          <div className="absolute bottom-[20%] left-[10%] w-[40%] h-[40%] rounded-full bg-orange-800/10 blur-[120px]" />
+          {/* Secondary Accent Glows - Enhanced */}
+          <div className="absolute top-[30%] right-[10%] w-[30%] h-[30%] rounded-full bg-gradient-to-br from-blue-400/15 to-transparent blur-[100px]" />
+          <div className="absolute bottom-[20%] left-[10%] w-[40%] h-[40%] rounded-full bg-gradient-to-tr from-emerald-500/12 via-amber-500/10 to-transparent blur-[120px]" />
 
           {/* Mesh Overlay */}
           <div className="absolute inset-0 mesh-bg opacity-[0.4] dark:opacity-[0.15]" />
@@ -34,7 +34,7 @@ export function AppShell() {
         </div>
 
         <GlobalNav />
-        <main className="relative z-10 pt-20 px-4 md:px-8 max-w-7xl mx-auto pb-12">
+        <main className="relative z-10 pt-24 px-4 md:px-8 max-w-7xl mx-auto pb-16">
           <div key={location.pathname} className="page-transition">
             <Outlet />
           </div>
